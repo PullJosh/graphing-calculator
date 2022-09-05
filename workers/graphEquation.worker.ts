@@ -6,6 +6,7 @@ import {
   generateQuadtree,
   getDualContours,
   getLeafConnections,
+  TreeNode,
 } from "../lib";
 
 let working = false;
@@ -24,11 +25,12 @@ addEventListener("message", (event) => {
     const expressionSet = equationToGraphableExpressionSet(node);
 
     let contours: Contour[] = [];
+    let tree: TreeNode | null = null;
     for (const { expression } of expressionSet.include) {
       try {
         const [f, df] = expressionToFunctionAndGradient(expression);
 
-        const tree = generateQuadtree(f, graphWindow, df, 5, 6);
+        tree = generateQuadtree(f, graphWindow, df, 5, 6);
         const leafConnections = getLeafConnections(f, tree);
         const dualContours = getDualContours(leafConnections);
 
@@ -38,7 +40,7 @@ addEventListener("message", (event) => {
         continue;
       }
     }
-    postMessage({ contours });
+    postMessage({ tree, contours });
   } catch (err) {
     console.error(err);
     postMessage({ contours: [] });

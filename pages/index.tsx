@@ -54,6 +54,8 @@ export default function Index() {
   const graphContainerRef = useRef(null);
   const [width, height] = useSize(graphContainerRef);
 
+  const [debug, setDebug] = useState(false);
+
   return (
     <div className="grid grid-cols-[300px,1fr] grid-rows-[auto,1fr] w-screen h-screen">
       <div className="flex justify-between items-center col-span-full bg-gray-800 px-4 py-3">
@@ -62,7 +64,7 @@ export default function Index() {
         </h1>
         <span className="text-gray-500">I can't believe it's not Desmos!</span>
       </div>
-      <div className="border-r shadow-lg">
+      <div className="flex flex-col border-r shadow-lg">
         {items.map((item, index) => (
           <EquationInput
             key={item.id}
@@ -82,6 +84,17 @@ export default function Index() {
             Add equation
           </button>
         </div>
+        <div className="mt-auto p-4">
+          <label className="flex items-center space-x-1">
+            <input
+              className="w-4 h-4"
+              type="checkbox"
+              checked={debug}
+              onChange={(event) => setDebug(event.target.checked)}
+            />
+            <span>Debug mode</span>
+          </label>
+        </div>
       </div>
       <div
         ref={graphContainerRef}
@@ -94,6 +107,7 @@ export default function Index() {
               key={item.id}
               equation={item.equation}
               color={item.color}
+              debug={debug}
             />
           ))}
         </Graph>

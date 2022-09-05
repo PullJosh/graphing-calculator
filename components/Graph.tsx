@@ -8,7 +8,7 @@ import {
   useState,
 } from "react";
 
-import type { Box, Contour, Point } from "../lib";
+import type { Box, Contour, Point, TreeNode } from "../lib";
 import { useDragPan } from "../hooks/useDragPan";
 import classNames from "classnames";
 
@@ -103,17 +103,13 @@ function getCoordinateTransformations(
   return { toScreenPos };
 }
 
-interface GraphEquationProps {
-  equation: string;
-  color: "red" | "blue";
-}
-
 function useContoursForEquation(
   equation: string,
   graphWindow: Box
-): Contour[] | null {
+): { tree: TreeNode | null; contours: Contour[] | null } {
   const workerRef = useRef<Worker | null>(null);
   const [contours, setContours] = useState<Contour[] | null>(null);
+  const [tree, setTree] = useState<TreeNode | null>(null);
 
   useEffect(() => {
     workerRef.current = new Worker(
@@ -123,6 +119,9 @@ function useContoursForEquation(
       const { data } = event;
       if ("contours" in data) {
         setContours(data.contours);
+      }
+      if ("tree" in data) {
+        setTree(data.tree);
       }
     };
 
@@ -135,10 +134,20 @@ function useContoursForEquation(
     workerRef.current?.postMessage({ equation, graphWindow });
   }, [equation, graphWindow]);
 
-  return contours;
+  return { tree, contours };
 }
 
-export function GraphEquation({ equation, color }: GraphEquationProps) {
+interface GraphEquationProps {
+  equation: string;
+  color: "red" | "blue";
+  debug?: boolean;
+}
+
+export function GraphEquation({
+  equation,
+  color,
+  debug = false,
+}: GraphEquationProps) {
   const { width, height, graphWindow } = useContext(GraphContext)!;
 
   const { toScreenPos } = getCoordinateTransformations(
@@ -147,10 +156,93 @@ export function GraphEquation({ equation, color }: GraphEquationProps) {
     height
   );
 
-  const contours = useContoursForEquation(equation, graphWindow);
+  const { tree, contours } = useContoursForEquation(equation, graphWindow);
   if (!contours) return null;
 
   let children: ReactNode[] = [];
+
+  if (debug && tree) {
+    const drawTree = (node: TreeNode) => {
+      switch (node.type) {
+        case "zero": {
+          const [minX, minY] = toScreenPos([node.box.minX, node.box.minY]);
+          const [maxX, maxY] = toScreenPos([node.box.maxX, node.box.maxY]);
+          children.push(
+            <rect
+              key={node.boxPath.join(" ")}
+              x={minX}
+              y={maxY}
+              width={maxX - minX}
+              height={Math.abs(maxY - minY)}
+              fill="blue"
+              stroke="navy"
+              strokeWidth={1}
+            />
+          );
+          break;
+        }
+        case "negative": {
+          const [minX, minY] = toScreenPos([node.box.minX, node.box.minY]);
+          const [maxX, maxY] = toScreenPos([node.box.maxX, node.box.maxY]);
+          children.push(
+            <rect
+              key={node.boxPath.join(" ")}
+              x={minX}
+              y={maxY}
+              width={maxX - minX}
+              height={Math.abs(maxY - minY)}
+              fill="#333"
+              stroke="#111"
+              strokeWidth={1}
+            />
+          );
+          break;
+        }
+        case "positive": {
+          const [minX, minY] = toScreenPos([node.box.minX, node.box.minY]);
+          const [maxX, maxY] = toScreenPos([node.box.maxX, node.box.maxY]);
+          children.push(
+            <rect
+              key={node.boxPath.join(" ")}
+              x={minX}
+              y={maxY}
+              width={maxX - minX}
+              height={Math.abs(maxY - minY)}
+              fill="#ddd"
+              stroke="#ccc"
+              strokeWidth={1}
+            />
+          );
+          break;
+        }
+        case "leaf": {
+          const [minX, minY] = toScreenPos([node.box.minX, node.box.minY]);
+          const [maxX, maxY] = toScreenPos([node.box.maxX, node.box.maxY]);
+          children.push(
+            <rect
+              key={node.boxPath.join(" ")}
+              x={minX}
+              y={maxY}
+              width={maxX - minX}
+              height={Math.abs(maxY - minY)}
+              fill="white"
+              stroke="lime"
+              strokeWidth={1}
+            />
+          );
+          break;
+        }
+        case "root":
+          for (const child of node.children) {
+            drawTree(child);
+          }
+          break;
+      }
+    };
+
+    drawTree(tree);
+  }
+
   for (let i = 0; i < contours.length; i++) {
     const contour = contours[i];
     let points: Point[] = [];

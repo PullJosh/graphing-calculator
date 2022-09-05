@@ -15,7 +15,7 @@ export interface Box {
 
 type BoxPath = (0 | 1 | 2 | 3)[]; // [] points to root `box`
 
-type TreeNode =
+export type TreeNode =
   | {
       type: "root";
       boxPath: BoxPath;
