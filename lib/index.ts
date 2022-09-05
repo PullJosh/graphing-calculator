@@ -288,63 +288,7 @@ export function generateQuadtree(
     return lookupTable[classification];
   }
 
-  // Old method that relies on guess-and-check (vs. actually solving)
-  function getLeafVertex(box: Box, segments: [Point, Point][]): Point | null {
-    const points = segments.flat();
-
-    if (points.length >= 2) {
-      // Build a cost function that gives each
-      // possible vertex point a terribleness score
-      const cost = (v: Point): number => {
-        let result = 0;
-        for (const point of points) {
-          let normalVector = df(...point);
-          if (normalVector[0] === 0 && normalVector[1] === 0) {
-            // If the gradient is zero, we may be at a corner (because
-            // the gradient function defaults to returning 0 when the
-            // actual derivative is undefined).
-            // Since we're trying to find the corner point, and this
-            // may be it, penalize `v` for being far from here.
-            result += Math.hypot(v[0] - point[0], v[1] - point[1]);
-            continue;
-          }
-          normalVector = normalize(normalVector);
-          const projectionDist =
-            (v[0] - point[0]) * normalVector[0] +
-            (v[1] - point[1]) * normalVector[1]; // Dot product
-          result += projectionDist ** 2;
-        }
-
-        return result;
-      };
-
-      // Find low-cost point by trial and error
-      let bestPoint: Point = [
-        (box.minX + box.maxX) / 2,
-        (box.minY + box.maxY) / 2,
-      ];
-      let bestCost = Infinity;
-      for (let x = 0; x <= 1; x += 0.1) {
-        for (let y = 0; y <= 1; y += 0.1) {
-          const newPoint: Point = [
-            box.minX * x + box.maxX * (1 - x),
-            box.minY * y + box.maxY * (1 - y),
-          ];
-          const newCost = cost(newPoint);
-          if (newCost < bestCost) {
-            bestCost = newCost;
-            bestPoint = newPoint;
-          }
-        }
-      }
-
-      return bestPoint;
-    }
-
-    return null;
-  }
-
-  /*
+  // https://www.mattkeeter.com/projects/qef/
   function getLeafVertex(box: Box, segments: [Point, Point][]): Point | null {
     // Get flat list of points (from segments)
     const points = segments.flat();
@@ -375,6 +319,30 @@ export function generateQuadtree(
       matrix[0].map((_, i) => matrix.map((row) => row[i]));
     const multiply = (a: number[][], b: number[][]): number[][] =>
       a.map((row) => b[0].map((_, i) => dot(row, transpose(b)[i])));
+    const det = (matrix: number[][]): number => {
+      if (matrix.length === 2) {
+        return matrix[0][0] * matrix[1][1] - matrix[0][1] * matrix[1][0];
+      }
+      return matrix[0].reduce(
+        (sum, _, i) =>
+          sum +
+          matrix[0][i] *
+            det(
+              matrix
+                .slice(1)
+                .map((row) => [...row.slice(0, i), ...row.slice(i + 1)])
+            ) *
+            (i % 2 === 0 ? 1 : -1),
+        0
+      );
+    };
+    const trace = (matrix: number[][]): number => {
+      let result = 0;
+      for (let i = 0; i < matrix.length; i++) {
+        result += matrix[i][i];
+      }
+      return result;
+    };
     const inverse = (
       matrix: number[][]
     ): [[number, number], [number, number]] => {
@@ -384,114 +352,83 @@ export function generateQuadtree(
         [-matrix[1][0] / det, matrix[0][0] / det],
       ];
     };
+    const addMatrix = (
+      matrixA: number[][],
+      matrixB: number[][]
+    ): number[][] => {
+      return matrixA.map((_, i) =>
+        matrixA[0].map((_, j) => matrixA[i][j] + matrixB[i][j])
+      );
+    };
+    const subtractMatrix = (
+      matrixA: number[][],
+      matrixB: number[][]
+    ): number[][] => {
+      return matrixA.map((_, i) =>
+        matrixA[0].map((_, j) => matrixA[i][j] - matrixB[i][j])
+      );
+    };
 
-    // We want to find a least-squares solution to Ax = b, where A and b are as follows:
-    const A = [
-      ...points,
-      // [box.minX, (box.minY + box.maxY) / 2],
-      // [(box.minX + box.maxX) / 2, box.minY],
-    ]; // Matrix with n rows and 2 columns
+    const A = [...normals];
+    /*
     const b = [
       ...points.map(
         (pt, i) => [dot(subtract(pt, center), normals[i])] as [number]
       ),
-      // [dot(subtract([box.minX, (box.minY + box.maxY) / 2], center), [1, 0])] as [number],
-      // [dot(subtract([(box.minX + box.maxX) / 2, box.minY], center), [0, 1])] as [number],
     ];
+    */
+    const b = [...points.map((pt, i) => [dot(pt, normals[i])] as [number])];
+
+    const A_T = transpose(A);
+    const A_T_A = multiply(A_T, A);
+    const A_T_b = multiply(A_T, b);
+    const b_T_b = multiply(transpose(b), b);
+
+    // Find eigenvalues (v1, v2) and eigenvectors (e1, e2) of A_T_A
+    const t = trace(A_T_A);
+    const d = det(A_T_A);
+    const v1: number = t / 2 + Math.sqrt((t / 2) ** 2 - d);
+    const v2: number = t / 2 - Math.sqrt((t / 2) ** 2 - d);
+    let e1: [[number], [number]], e2: [[number], [number]];
+    if (A_T_A[1][0] !== 0) {
+      e1 = [[(v1 - A_T_A[1][1]) / A_T_A[1][0]], [1]];
+      e2 = [[(v2 - A_T_A[1][1]) / A_T_A[1][0]], [1]];
+    } else if (A_T_A[0][1] !== 0) {
+      e1 = [[1], [(v1 - A_T_A[0][0]) / A_T_A[0][1]]];
+      e2 = [[1], [(v2 - A_T_A[0][0]) / A_T_A[0][1]]];
+    } else {
+      e1 = [[1], [0]];
+      e2 = [[0], [1]];
+    }
+
+    const epsilon = 0.1;
+    const check = (v: number) => (v < epsilon ? 0 : 1 / v);
+    const D_0_1 = [
+      [check(v1), 0],
+      [0, check(v2)],
+    ];
+    const U = [transpose(e1)[0], transpose(e2)[0]];
+
+    const A_T_A_1 = multiply(multiply(transpose(U), D_0_1), U);
+    const A_T_A_1_real = inverse(multiply(A_T, A));
 
     // The least-squares solution is x = (A^T A)^-1 A^T b
-    const A_T = transpose(A);
+    // const x: Point = transpose(multiply(A_T_A_1, A_T_b))[0] as Point;
     const x: Point = transpose(
-      multiply(multiply(inverse(multiply(A_T, A)), A_T), b)
+      addMatrix(
+        multiply(
+          A_T_A_1_real,
+          subtractMatrix(A_T_b, multiply(A_T_A, transpose([center])))
+        ),
+        transpose([center])
+      )
     )[0] as Point;
 
-    let result = add(center, x);
-    result[0] = Math.max(box.minX, Math.min(box.maxX, result[0]));
-    result[1] = Math.max(box.minY, Math.min(box.maxY, result[1]));
-    
-    return result;
+    // x[0] = Math.max(box.minX, Math.min(box.maxX, x[0]));
+    // x[1] = Math.max(box.minY, Math.min(box.maxY, x[1]));
+
+    return x;
   }
-  */
-
-  // Given a particular box, grab the four vertex values
-  // and use those values to create a linear approximation
-  // of f(x, y).
-  // function interpolate(box: Box): (x: number, y: number) => number {
-  //   const { minX, maxX, minY, maxY } = box;
-
-  //   const approxF = (x: number, y: number): number => {
-  //     const dx = (x - minX) / (maxX - minX);
-  //     const dy = (y - minY) / (maxY - minY);
-  //     const ab = f(minX, minY) * (1 - dx) + f(maxX, minY) * dx;
-  //     const cd = f(minX, maxY) * (1 - dx) + f(maxX, maxY) * dx;
-  //     return ab * (1 - dy) + cd * dy;
-  //   };
-
-  //   return approxF;
-  // }
-
-  // Simplify the tree by merging leaves in areas where the
-  // contour is mostly "flat" (i.e. well approximated by linear interpolation).
-  // This means the leaves will be larger and less precise in simpler areas
-  // and smaller and more complicated in more complex areas.
-  // function mergeLeaves(
-  //   treeNode: TreeNode,
-  //   requiredDepth = 0,
-  //   threshold = 0.001
-  // ): TreeNode {
-  //   if (treeNode.type !== "root") {
-  //     return treeNode;
-  //   }
-
-  //   // This is a root node. Begin by recursively
-  //   // applying mergeLeaves to all children
-  //   const newChildren = treeNode.children.map((child) =>
-  //     mergeLeaves(child, requiredDepth - 1, threshold)
-  //   ) as [TreeNode, TreeNode, TreeNode, TreeNode];
-
-  //   const newNode = {
-  //     ...treeNode,
-  //     children: newChildren,
-  //   };
-
-  //   if (requiredDepth <= 0) {
-  //     if (newNode.children.some((child) => child.type === "leaf")) {
-  //       const { minX, maxX, minY, maxY } = newNode.box;
-  //       const midX = (minX + maxX) / 2;
-  //       const midY = (minY + maxY) / 2;
-
-  //       const approxF = interpolate(newNode.box);
-  //       const score = (x: number, y: number) => {
-  //         return Math.abs(approxF(x, y) - f(x, y));
-  //       };
-
-  //       // If the behavior of f is roughly linear here, merge all
-  //       // the children into a single leaf node
-  //       if (
-  //         score(midX, midY) < threshold &&
-  //         score(midX, minY) < threshold &&
-  //         score(maxX, midY) < threshold &&
-  //         score(minX, midY) < threshold &&
-  //         score(midX, maxY) < threshold
-  //       ) {
-  //         const vertexValues = getBoxVertexValues(newNode.box);
-  //         const classification = getLeafClassification(vertexValues);
-  //         const segments = getLeafSegments(classification, newNode.box);
-  //         const vertex = getLeafVertex(newNode.box, segments);
-  //         return {
-  //           type: "leaf",
-  //           boxPath: newNode.boxPath,
-  //           box: newNode.box,
-  //           classification,
-  //           segments,
-  //           vertex,
-  //         };
-  //       }
-  //     }
-  //   }
-
-  //   return newNode;
-  // }
 
   function buildTree(boxPath: BoxPath, depth = 0): TreeNode {
     const box = getBoxAtPath(boxPath);
@@ -536,7 +473,6 @@ export function generateQuadtree(
   }
 
   let tree = buildTree([]);
-  // tree = mergeLeaves(tree, searchDepth, 0.001);
   return tree;
 }
 
@@ -709,39 +645,22 @@ export function getDualContours(leafConnections: LeafConnection[]) {
   return simplifyContours(contours);
 }
 
-export interface GraphableExpressionSet {
-  include: {
-    expression: math.MathNode;
-    opWithZero: "="; // "<" | "<=" | "=" | ">=" | ">";
-  }[];
-  exclude: {
-    expression: math.MathNode;
-    opWithZero: "="; // "<" | "<=" | "=" | ">=" | ">";
-  }[];
+/*
+  TODO: Find ways to represent...
+    - Simple equalities and inequalities
+    - Restricted domains
+    - Simplified multiplication (graph each term independently, then merge)
+    - Inequality chains (e.g. 0.5 < x^2 < x)
+*/
+export interface GraphableExpression {
+  expression: math.MathNode;
+  opWithZero: "="; // "<" | "<=" | "=" | ">=" | ">";
 }
 
-export function equationToGraphableExpressionSet(
+export function equationToGraphableExpression(
   node: math.MathNode
-): GraphableExpressionSet {
-  function mergeSets(
-    expressionSets: GraphableExpressionSet[]
-  ): GraphableExpressionSet {
-    return {
-      include: expressionSets.flatMap((set) => set.include),
-      exclude: expressionSets.flatMap((set) => set.exclude),
-    };
-  }
-
-  function negateSet(
-    expressionSet: GraphableExpressionSet
-  ): GraphableExpressionSet {
-    return {
-      include: expressionSet.exclude,
-      exclude: expressionSet.include,
-    };
-  }
-
-  function step(node: math.MathNode): GraphableExpressionSet {
+): GraphableExpression {
+  function step(node: math.MathNode): GraphableExpression {
     if (node.type === "AssignmentNode") {
       return step(
         new math.OperatorNode("==", "equal", [node.object, node.value])
@@ -752,11 +671,12 @@ export function equationToGraphableExpressionSet(
       if (node.fn === "equal") {
         return step(new math.OperatorNode("-", "subtract", node.args));
       }
-      if (node.fn === "multiply") {
-        return mergeSets(node.args.map(step));
-      }
+      // if (node.fn === "multiply") {
+      //   return mergeSets(node.args.map(step));
+      // }
       if (node.fn === "divide") {
-        return mergeSets([step(node.args[0]), negateSet(step(node.args[1]))]);
+        // return mergeSets([step(node.args[0]), negateSet(step(node.args[1]))]);
+        return step(node.args[0]); // TODO: Constrain domain (denominator != 0)
       }
       if (node.fn === "pow") {
         if (node.args[1].type === "ConstantNode") {
@@ -778,10 +698,7 @@ export function equationToGraphableExpressionSet(
 
     node = math.simplify(node);
 
-    return {
-      include: [{ expression: node, opWithZero: "=" }],
-      exclude: [],
-    };
+    return { expression: node, opWithZero: "=" };
   }
 
   return step(node);
@@ -845,156 +762,4 @@ export function expressionToFunctionAndGradient(
   };
 
   return [f, df];
-}
-
-export function graphExpressionSet(
-  graphableExpressionSet: GraphableExpressionSet,
-  graphWindow: Box,
-  ctx: CanvasRenderingContext2D,
-  width: number,
-  height: number
-) {
-  function toScreenPos([x, y]: [number, number]): [number, number] {
-    return [
-      0.5 +
-        width *
-          ((x - graphWindow.minX) / (graphWindow.maxX - graphWindow.minX)),
-      0.5 +
-        height *
-          (1 - (y - graphWindow.minY) / (graphWindow.maxY - graphWindow.minY)),
-    ];
-  }
-
-  function drawTreeStructure(treeNode: TreeNode) {
-    const drawRect = (box: Box) => {
-      const topLeft = toScreenPos([box.minX, box.maxY]);
-      ctx.rect(
-        topLeft[0],
-        topLeft[1],
-        (width * (box.maxX - box.minX)) / (graphWindow.maxX - graphWindow.minX),
-        (height * (box.maxY - box.minY)) / (graphWindow.maxY - graphWindow.minY)
-      );
-    };
-
-    switch (treeNode.type) {
-      case "root":
-        for (const child of treeNode.children) {
-          drawTreeStructure(child);
-        }
-        break;
-      case "positive":
-        ctx.beginPath();
-        // ctx.fillStyle = "white";
-        ctx.strokeStyle = "#eee";
-        ctx.lineWidth = 1;
-        drawRect(treeNode.box);
-        // ctx.fill();
-        ctx.stroke();
-        break;
-      case "negative":
-        ctx.beginPath();
-        ctx.strokeStyle = "black";
-        ctx.fillStyle = "#222";
-        ctx.lineWidth = 1;
-        drawRect(treeNode.box);
-        // ctx.fill();
-        ctx.stroke();
-        break;
-      case "zero":
-        ctx.beginPath();
-        ctx.strokeStyle = "red";
-        ctx.fillStyle = "rgba(255, 0, 0, 0.5)";
-        ctx.lineWidth = 1;
-        drawRect(treeNode.box);
-        ctx.fill();
-        ctx.stroke();
-        break;
-      case "leaf": {
-        ctx.beginPath();
-        ctx.strokeStyle = "lime";
-        ctx.lineWidth = 1;
-        drawRect(treeNode.box);
-        ctx.stroke();
-      }
-    }
-  }
-
-  function drawContours(contours: Contour[], color: string = "black") {
-    for (const contour of contours) {
-      ctx.beginPath();
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 3;
-      ctx.moveTo(...toScreenPos(contour.points[0]));
-      for (const point of contour.points.slice(1)) {
-        ctx.lineTo(...toScreenPos(point));
-      }
-      ctx.stroke();
-    }
-  }
-
-  function drawVectorField(
-    f: (x: number, y: number) => [x: number, y: number]
-  ) {
-    let maxLength = 0;
-    for (let i = 0; i <= 20; i++) {
-      for (let j = 0; j <= 20; j++) {
-        const x =
-          graphWindow.minX + (i / 20) * (graphWindow.maxX - graphWindow.minX);
-        const y =
-          graphWindow.minY + (j / 20) * (graphWindow.maxY - graphWindow.minY);
-
-        const length = Math.hypot(...f(x, y));
-        if (length > maxLength) {
-          maxLength = length;
-        }
-      }
-    }
-
-    for (let i = 0; i <= 20; i++) {
-      for (let j = 0; j <= 20; j++) {
-        const x =
-          graphWindow.minX + (i / 20) * (graphWindow.maxX - graphWindow.minX);
-        const y =
-          graphWindow.minY + (j / 20) * (graphWindow.maxY - graphWindow.minY);
-
-        let [dx, dy] = f(x, y);
-        const length = Math.hypot(dx, dy);
-        const newLength = length / Math.max(maxLength, 1);
-        dx *= newLength / length;
-        dy *= newLength / length;
-
-        ctx.beginPath();
-        ctx.fillStyle = "#ccc";
-        ctx.arc(...toScreenPos([x, y]), 2, 0, 2 * Math.PI);
-        ctx.fill();
-
-        ctx.beginPath();
-        ctx.strokeStyle = "black";
-        ctx.lineWidth = 1;
-        ctx.moveTo(...toScreenPos([x, y]));
-        const endpoint = toScreenPos([x, y]);
-        ctx.lineTo(endpoint[0] + dx * 10, endpoint[1] - dy * 10);
-        ctx.stroke();
-      }
-    }
-  }
-
-  for (const { expression } of graphableExpressionSet.include) {
-    const [f, df] = expressionToFunctionAndGradient(expression);
-
-    (window as any).f = f;
-    (window as any).df = df;
-
-    // drawVectorField(df);
-
-    const tree = generateQuadtree(f, graphWindow, df, 5, 6);
-    // drawTreeStructure(tree);
-
-    // const contours = getMarchingSquaresContours(tree);
-    // drawContours(contours, "blue");
-
-    const leafConnections = getLeafConnections(f, tree);
-    const dualContours = getDualContours(leafConnections);
-    drawContours(dualContours);
-  }
 }

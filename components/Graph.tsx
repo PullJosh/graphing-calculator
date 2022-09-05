@@ -106,10 +106,17 @@ function getCoordinateTransformations(
 function useContoursForEquation(
   equation: string,
   graphWindow: Box
-): { tree: TreeNode | null; contours: Contour[] | null } {
+): {
+  tree: TreeNode | null;
+  contours: Contour[] | null;
+  marchingSquaresContours: Contour[] | null;
+} {
   const workerRef = useRef<Worker | null>(null);
   const [contours, setContours] = useState<Contour[] | null>(null);
   const [tree, setTree] = useState<TreeNode | null>(null);
+  const [marchingSquaresContours, setMarchingSquaresContours] = useState<
+    Contour[] | null
+  >(null);
 
   useEffect(() => {
     workerRef.current = new Worker(
@@ -123,6 +130,9 @@ function useContoursForEquation(
       if ("tree" in data) {
         setTree(data.tree);
       }
+      if ("marchingSquaresContours" in data) {
+        setMarchingSquaresContours(data.marchingSquaresContours);
+      }
     };
 
     return () => {
@@ -134,7 +144,7 @@ function useContoursForEquation(
     workerRef.current?.postMessage({ equation, graphWindow });
   }, [equation, graphWindow]);
 
-  return { tree, contours };
+  return { tree, contours, marchingSquaresContours };
 }
 
 interface GraphEquationProps {
@@ -156,7 +166,10 @@ export function GraphEquation({
     height
   );
 
-  const { tree, contours } = useContoursForEquation(equation, graphWindow);
+  const { tree, contours, marchingSquaresContours } = useContoursForEquation(
+    equation,
+    graphWindow
+  );
   if (!contours) return null;
 
   let children: ReactNode[] = [];
@@ -243,6 +256,27 @@ export function GraphEquation({
     drawTree(tree);
   }
 
+  if (debug && marchingSquaresContours) {
+    for (let i = 0; i < marchingSquaresContours.length; i++) {
+      const contour = marchingSquaresContours[i];
+      let points: Point[] = [];
+
+      for (const point of contour.points) {
+        points.push(toScreenPos(point));
+      }
+
+      children.push(
+        <polyline
+          key={`msc-${i}`}
+          strokeWidth={3}
+          className="stroke-purple-600"
+          fill="none"
+          points={points.map((pt) => pt.join(",")).join(" ")}
+        />
+      );
+    }
+  }
+
   for (let i = 0; i < contours.length; i++) {
     const contour = contours[i];
     let points: Point[] = [];
@@ -253,7 +287,7 @@ export function GraphEquation({
 
     children.push(
       <polyline
-        key={i}
+        key={`c-${i}`}
         strokeWidth={3}
         className={classNames({
           "stroke-red-600": color === "red",
