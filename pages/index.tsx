@@ -11,8 +11,8 @@ interface EquationItem {
 
 export default function Index() {
   const [items, setItems] = useState<EquationItem[]>([
-    { id: 0, equation: "y=x", color: "red" },
-    { id: 1, equation: "y=x", color: "red" },
+    { id: 0, equation: "y=x^2", color: "red" },
+    { id: 1, equation: "x^2+y^2=25", color: "blue" },
   ]);
 
   const setItem = (index: number, item: EquationItem) => {
