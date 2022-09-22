@@ -290,6 +290,7 @@ export function getLeafVertex(
 
   function solve(A_T_A: math.Matrix, A_T_b: math.Matrix): Point {
     try {
+      // @ts-expect-error (math.pinv() exists but is not in the types)
       const result = math.multiply(math.pinv(A_T_A), A_T_b);
       return math.add(
         (math.transpose(result).toArray()[0] as number[]).slice(0, 2),
