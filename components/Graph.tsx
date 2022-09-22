@@ -272,6 +272,8 @@ export function GraphEquation({
           className="stroke-purple-600"
           fill="none"
           points={points.map((pt) => pt.join(",")).join(" ")}
+          strokeLinejoin="round"
+          strokeLinecap="round"
         />
       );
     }
@@ -295,6 +297,8 @@ export function GraphEquation({
         })}
         fill="none"
         points={points.map((pt) => pt.join(",")).join(" ")}
+        strokeLinejoin="round"
+        strokeLinecap="round"
       />
     );
   }
@@ -367,4 +371,78 @@ export function GraphGrid({ xStep, yStep }: GraphGridProps) {
   }
 
   return <g>{children}</g>;
+}
+
+interface GraphPointProps {
+  point: [number, number];
+  color: "red" | "blue";
+  size?: number;
+}
+
+export function GraphPoint({ point, color, size = 8 }: GraphPointProps) {
+  const { width, height, graphWindow } = useContext(GraphContext)!;
+
+  const { toScreenPos } = getCoordinateTransformations(
+    graphWindow,
+    width,
+    height
+  );
+
+  const pos = toScreenPos(point);
+
+  return (
+    <g>
+      <circle
+        cx={pos[0]}
+        cy={pos[1]}
+        r={size}
+        className={classNames({
+          "fill-red-600": color === "red",
+          "fill-blue-600": color === "blue",
+        })}
+      />
+    </g>
+  );
+}
+
+interface GraphLineProps {
+  line: [Point, Point];
+  color: "red" | "blue";
+}
+
+export function GraphLine({ line, color }: GraphLineProps) {
+  const { width, height, graphWindow } = useContext(GraphContext)!;
+
+  const { toScreenPos } = getCoordinateTransformations(
+    graphWindow,
+    width,
+    height
+  );
+
+  const [A, B] = line;
+
+  const start: Point = [
+    A[0] + (B[0] - A[0]) * 1000,
+    A[1] + (B[1] - A[1]) * 1000,
+  ];
+  const end: Point = [A[0] - (B[0] - A[0]) * 1000, A[1] - (B[1] - A[1]) * 1000];
+
+  const [sx, sy] = toScreenPos(start);
+  const [ex, ey] = toScreenPos(end);
+
+  return (
+    <g>
+      <line
+        x1={sx}
+        y1={sy}
+        x2={ex}
+        y2={ey}
+        className={classNames({
+          "stroke-red-600": color === "red",
+          "stroke-blue-600": color === "blue",
+        })}
+        strokeWidth={3}
+      />
+    </g>
+  );
 }

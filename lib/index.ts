@@ -160,9 +160,204 @@ function derivative(
   return df;
 }
 
-function normalize([x, y]: [number, number]): [number, number] {
-  const length = Math.hypot(x, y) ?? 1;
+export function normalize([x, y]: [number, number]): [number, number] {
+  const length = Math.hypot(x, y) || 1;
   return [x / length, y / length];
+}
+
+function getBoxVertex(box: Box, vertexNumber: 0 | 1 | 2 | 3): Point {
+  switch (vertexNumber) {
+    case 0:
+      return [box.minX, box.minY];
+    case 1:
+      return [box.maxX, box.minY];
+    case 2:
+      return [box.minX, box.maxY];
+    case 3:
+      return [box.maxX, box.maxY];
+  }
+}
+
+function getLeafClassification(
+  vertexValues: [number, number, number, number]
+): number {
+  const vertexClassifications = vertexValues.map((value) => {
+    if (isNaN(value)) {
+      // Always returning true here happens to work for one particular
+      // hyperbola I'm graphing, but it might not always be correct.
+      return false;
+    }
+    return value < 0;
+  });
+
+  const classification =
+    (vertexClassifications[0] ? 8 : 0) +
+    (vertexClassifications[1] ? 4 : 0) +
+    (vertexClassifications[2] ? 2 : 0) +
+    (vertexClassifications[3] ? 1 : 0);
+
+  return classification;
+}
+
+// Method of false position
+function findZero(f: (...point: Point) => number, a: Point, b: Point): Point {
+  const fa = f(...a);
+  const fb = f(...b);
+  let t = -fa / (fb - fa);
+  if (fa === fb) {
+    t = 0.5;
+  }
+  // Use t = 0.5 to visualize the joints more directly
+  // t = 0.5;
+  return [a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])];
+}
+
+function getLeafSegments(
+  classification: number,
+  box: Box,
+  f: (...point: Point) => number
+): [Point, Point][] {
+  const bottomLeft: Point = [box.minX, box.minY];
+  const bottomRight: Point = [box.maxX, box.minY];
+  const topLeft: Point = [box.minX, box.maxY];
+  const topRight: Point = [box.maxX, box.maxY];
+
+  const left = (): Point => findZero(f, bottomLeft, topLeft);
+  const right = (): Point => findZero(f, bottomRight, topRight);
+  const top = (): Point => findZero(f, topLeft, topRight);
+  const bottom = (): Point => findZero(f, bottomLeft, bottomRight);
+
+  const lookupTable: [Point, Point][][] = [
+    [],
+    [[top(), right()]],
+    [[left(), top()]],
+    [[left(), right()]],
+    [[right(), bottom()]],
+    [[top(), bottom()]],
+    [
+      [right(), bottom()],
+      [left(), top()],
+    ],
+    [[left(), bottom()]],
+    [[bottom(), left()]],
+    [
+      [bottom(), left()],
+      [top(), right()],
+    ],
+    [[bottom(), top()]],
+    [[bottom(), right()]],
+    [[right(), left()]],
+    [[top(), left()]],
+    [[right(), top()]],
+    [],
+  ];
+
+  return lookupTable[classification];
+}
+
+function inBox(point: Point, box: Box): boolean {
+  return (
+    point[0] >= box.minX &&
+    point[0] <= box.maxX &&
+    point[1] >= box.minY &&
+    point[1] <= box.maxY
+  );
+}
+
+// https://www.mattkeeter.com/projects/qef/
+export function getLeafVertex(
+  box: Box,
+  segments: [Point, Point][],
+  df: (...point: Point) => [number, number]
+): Point | null {
+  // Get flat list of points (from segments)
+  const points: Point[] = segments.flat();
+  if (points.length < 2) return null;
+
+  // For each point, get the normal (unit) vector based on the gradient function
+  const normals: Point[] = points.map((pt) => normalize(df(...pt)));
+
+  // Get average of all points
+  const center = math.mean(points, 0) as Point;
+
+  const A = math.matrix([...normals]);
+  const b = math.matrix(
+    points.map((pt, i) => [math.dot(math.subtract(pt, center), normals[i])])
+  );
+
+  const A_T_A = math.multiply(math.transpose(A), A);
+  const A_T_b = math.multiply(math.transpose(A), b);
+
+  function solve(A_T_A: math.Matrix, A_T_b: math.Matrix): Point {
+    try {
+      const result = math.multiply(math.pinv(A_T_A), A_T_b);
+      return math.add(
+        (math.transpose(result).toArray()[0] as number[]).slice(0, 2),
+        center
+      ) as Point;
+    } catch (err) {
+      console.error(err);
+      console.log(A, b);
+      return center;
+    }
+  }
+
+  let point: Point = solve(A_T_A, A_T_b);
+
+  if (inBox(point, box)) {
+    return point;
+  }
+
+  const constrain = (
+    axis: number,
+    value: number
+  ): [A_T_A: math.Matrix, A_T_b: math.Matrix] => {
+    const sparse = (index: number, length: number) => {
+      return new Array(length).fill(0).map((_, i) => (i === index ? 1 : 0));
+    };
+
+    return [
+      math.concat(
+        math.concat(A_T_A, math.matrix(math.transpose([sparse(axis, 2)]))),
+        math.matrix([sparse(axis, 3)]),
+        0
+      ) as math.Matrix,
+      math.concat(A_T_b, [[value]], 0) as math.Matrix,
+    ];
+  };
+
+  const solutions = [
+    solve(...constrain(0, box.minX - center[0])),
+    solve(...constrain(0, box.maxX - center[0])),
+    solve(...constrain(1, box.minY - center[1])),
+    solve(...constrain(1, box.maxY - center[1])),
+  ];
+
+  const getBestSolution = (solutions: Point[]): Point => {
+    const errors = solutions.map((s) =>
+      normals
+        .map((n, i) => math.dot(math.subtract(s, points[i]), n) ** 2)
+        .reduce((a, b) => a + b, 0)
+    );
+    const minError = math.min(errors);
+    return solutions[errors.indexOf(minError)];
+  };
+
+  const validSolutions = solutions.filter((s) => inBox(s, box));
+
+  if (validSolutions.length > 0) {
+    return getBestSolution(validSolutions);
+  }
+
+  return math.add(
+    getBestSolution([
+      math.subtract([box.minX, box.minY], center),
+      math.subtract([box.maxX, box.minY], center),
+      math.subtract([box.minX, box.maxY], center),
+      math.subtract([box.maxX, box.maxY], center),
+    ]),
+    center
+  );
 }
 
 export function generateQuadtree(
@@ -188,19 +383,6 @@ export function generateQuadtree(
     return result;
   }
 
-  function getBoxVertex(box: Box, vertexNumber: 0 | 1 | 2 | 3): Point {
-    switch (vertexNumber) {
-      case 0:
-        return [box.minX, box.minY];
-      case 1:
-        return [box.maxX, box.minY];
-      case 2:
-        return [box.minX, box.maxY];
-      case 3:
-        return [box.maxX, box.maxY];
-    }
-  }
-
   function getVertexValue(vertex: Point): number {
     return f(vertex[0], vertex[1]);
   }
@@ -212,222 +394,6 @@ export function generateQuadtree(
       getVertexValue(getBoxVertex(box, 2)),
       getVertexValue(getBoxVertex(box, 3)),
     ];
-  }
-
-  function getLeafClassification(
-    vertexValues: [number, number, number, number]
-  ): number {
-    const vertexClassifications = vertexValues.map((value) => {
-      if (isNaN(value)) {
-        // Always returning true here happens to work for one particular
-        // hyperbola I'm graphing, but it might not always be correct.
-        return false;
-      }
-      return value < 0;
-    });
-
-    const classification =
-      (vertexClassifications[0] ? 8 : 0) +
-      (vertexClassifications[1] ? 4 : 0) +
-      (vertexClassifications[2] ? 2 : 0) +
-      (vertexClassifications[3] ? 1 : 0);
-
-    return classification;
-  }
-
-  type Point = [number, number];
-  function getLeafSegments(classification: number, box: Box): [Point, Point][] {
-    // "method of false position"
-    const findZero = (a: Point, b: Point): Point => {
-      const fa = f(...a);
-      const fb = f(...b);
-      let t = -fa / (fb - fa);
-      if (fa === fb) {
-        t = 0.5;
-      }
-      // Use t = 0.5 to visualize the joints more directly
-      // t = 0.5;
-      return [a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])];
-    };
-
-    const bottomLeft: Point = [box.minX, box.minY];
-    const bottomRight: Point = [box.maxX, box.minY];
-    const topLeft: Point = [box.minX, box.maxY];
-    const topRight: Point = [box.maxX, box.maxY];
-
-    const left = (): Point => findZero(bottomLeft, topLeft);
-    const right = (): Point => findZero(bottomRight, topRight);
-    const top = (): Point => findZero(topLeft, topRight);
-    const bottom = (): Point => findZero(bottomLeft, bottomRight);
-
-    const lookupTable: [Point, Point][][] = [
-      [],
-      [[top(), right()]],
-      [[left(), top()]],
-      [[left(), right()]],
-      [[right(), bottom()]],
-      [[top(), bottom()]],
-      [
-        [right(), bottom()],
-        [left(), top()],
-      ],
-      [[left(), bottom()]],
-      [[bottom(), left()]],
-      [
-        [bottom(), left()],
-        [top(), right()],
-      ],
-      [[bottom(), top()]],
-      [[bottom(), right()]],
-      [[right(), left()]],
-      [[top(), left()]],
-      [[right(), top()]],
-      [],
-    ];
-
-    return lookupTable[classification];
-  }
-
-  // https://www.mattkeeter.com/projects/qef/
-  function getLeafVertex(box: Box, segments: [Point, Point][]): Point | null {
-    // Get flat list of points (from segments)
-    const points = segments.flat();
-
-    if (points.length < 2) {
-      return null;
-    }
-
-    // Get average of all points
-    let center: Point = points.reduce(
-      (sum, point): Point => [sum[0] + point[0], sum[1] + point[1]],
-      [0, 0]
-    );
-    center[0] /= points.length;
-    center[1] /= points.length;
-
-    // For each point, get the normal (unit) vector based on the gradient function
-    const normals: Point[] = points.map((pt) => normalize(df(...pt)));
-
-    // Vector operations
-    const add = (a: Point, b: Point): Point => [a[0] + b[0], a[1] + b[1]];
-    const subtract = (a: Point, b: Point): Point => [a[0] - b[0], a[1] - b[1]];
-    const dot = (a: number[], b: number[]): number =>
-      a.map((x, i) => x * b[i]).reduce((a, b) => a + b, 0);
-
-    // Matrix operations
-    const transpose = (matrix: number[][]): number[][] =>
-      matrix[0].map((_, i) => matrix.map((row) => row[i]));
-    const multiply = (a: number[][], b: number[][]): number[][] =>
-      a.map((row) => b[0].map((_, i) => dot(row, transpose(b)[i])));
-    const det = (matrix: number[][]): number => {
-      if (matrix.length === 2) {
-        return matrix[0][0] * matrix[1][1] - matrix[0][1] * matrix[1][0];
-      }
-      return matrix[0].reduce(
-        (sum, _, i) =>
-          sum +
-          matrix[0][i] *
-            det(
-              matrix
-                .slice(1)
-                .map((row) => [...row.slice(0, i), ...row.slice(i + 1)])
-            ) *
-            (i % 2 === 0 ? 1 : -1),
-        0
-      );
-    };
-    const trace = (matrix: number[][]): number => {
-      let result = 0;
-      for (let i = 0; i < matrix.length; i++) {
-        result += matrix[i][i];
-      }
-      return result;
-    };
-    const inverse = (
-      matrix: number[][]
-    ): [[number, number], [number, number]] => {
-      const det = matrix[0][0] * matrix[1][1] - matrix[0][1] * matrix[1][0];
-      return [
-        [matrix[1][1] / det, -matrix[0][1] / det],
-        [-matrix[1][0] / det, matrix[0][0] / det],
-      ];
-    };
-    const addMatrix = (
-      matrixA: number[][],
-      matrixB: number[][]
-    ): number[][] => {
-      return matrixA.map((_, i) =>
-        matrixA[0].map((_, j) => matrixA[i][j] + matrixB[i][j])
-      );
-    };
-    const subtractMatrix = (
-      matrixA: number[][],
-      matrixB: number[][]
-    ): number[][] => {
-      return matrixA.map((_, i) =>
-        matrixA[0].map((_, j) => matrixA[i][j] - matrixB[i][j])
-      );
-    };
-
-    const A = [...normals];
-    /*
-    const b = [
-      ...points.map(
-        (pt, i) => [dot(subtract(pt, center), normals[i])] as [number]
-      ),
-    ];
-    */
-    const b = [...points.map((pt, i) => [dot(pt, normals[i])] as [number])];
-
-    const A_T = transpose(A);
-    const A_T_A = multiply(A_T, A);
-    const A_T_b = multiply(A_T, b);
-    const b_T_b = multiply(transpose(b), b);
-
-    // Find eigenvalues (v1, v2) and eigenvectors (e1, e2) of A_T_A
-    const t = trace(A_T_A);
-    const d = det(A_T_A);
-    const v1: number = t / 2 + Math.sqrt((t / 2) ** 2 - d);
-    const v2: number = t / 2 - Math.sqrt((t / 2) ** 2 - d);
-    let e1: [[number], [number]], e2: [[number], [number]];
-    if (A_T_A[1][0] !== 0) {
-      e1 = [[(v1 - A_T_A[1][1]) / A_T_A[1][0]], [1]];
-      e2 = [[(v2 - A_T_A[1][1]) / A_T_A[1][0]], [1]];
-    } else if (A_T_A[0][1] !== 0) {
-      e1 = [[1], [(v1 - A_T_A[0][0]) / A_T_A[0][1]]];
-      e2 = [[1], [(v2 - A_T_A[0][0]) / A_T_A[0][1]]];
-    } else {
-      e1 = [[1], [0]];
-      e2 = [[0], [1]];
-    }
-
-    const epsilon = 0.1;
-    const check = (v: number) => (v < epsilon ? 0 : 1 / v);
-    const D_0_1 = [
-      [check(v1), 0],
-      [0, check(v2)],
-    ];
-    const U = [transpose(e1)[0], transpose(e2)[0]];
-
-    const A_T_A_1 = multiply(multiply(transpose(U), D_0_1), U);
-    const A_T_A_1_real = inverse(multiply(A_T, A));
-
-    // The least-squares solution is x = (A^T A)^-1 A^T b
-    // const x: Point = transpose(multiply(A_T_A_1, A_T_b))[0] as Point;
-    const x: Point = transpose(
-      addMatrix(
-        multiply(
-          A_T_A_1_real,
-          subtractMatrix(A_T_b, multiply(A_T_A, transpose([center])))
-        ),
-        transpose([center])
-      )
-    )[0] as Point;
-
-    // x[0] = Math.max(box.minX, Math.min(box.maxX, x[0]));
-    // x[1] = Math.max(box.minY, Math.min(box.maxY, x[1]));
-
-    return x;
   }
 
   function buildTree(boxPath: BoxPath, depth = 0): TreeNode {
@@ -453,8 +419,8 @@ export function generateQuadtree(
 
       if (depth >= plotDepth) {
         const classification = getLeafClassification(vertexValues);
-        const segments = getLeafSegments(classification, box);
-        const vertex = getLeafVertex(box, segments);
+        const segments = getLeafSegments(classification, box, f);
+        const vertex = getLeafVertex(box, segments, df);
         return { type: "leaf", boxPath, box, classification, segments, vertex };
       }
     }
@@ -720,41 +686,41 @@ export function expressionToFunctionAndGradient(
     const isReasonableReal = (x: any) => {
       return typeof x === "number" && !isNaN(x) && isFinite(x);
     };
-    const averageGoodResults = (values: any[]): number => {
-      let result: number = 0;
-      let numberOfIncludedPoints = 0;
+    const isReasonablePair = (dx: number, dy: number): boolean => {
+      return isReasonableReal(dx) && isReasonableReal(dy);
+    };
+    const firstGoodResult = (values: [number, number][]): [number, number] => {
       for (const value of values) {
-        if (isReasonableReal(value)) {
-          result += value;
-          numberOfIncludedPoints++;
+        if (isReasonablePair(...value)) {
+          return value;
         }
       }
-      if (numberOfIncludedPoints > 0) {
-        result /= numberOfIncludedPoints;
-      }
-      return result;
+      return [0, 0];
     };
     const epsilon = 0.0001;
 
     let dx = dfdx.evaluate({ x, y });
-    if (!isReasonableReal(dx)) {
+    let dy = dfdy.evaluate({ x, y });
+    if (!isReasonableReal(dx) || !isReasonableReal(dy)) {
       // This very dumb trick is a Josh original. If the derivative is undefined,
       // calculate its value at nearby points and take the average.
-      dx = averageGoodResults([
-        dfdx.evaluate({ x: x + epsilon, y: y + epsilon }),
-        dfdx.evaluate({ x: x - epsilon, y: y + epsilon }),
-        dfdx.evaluate({ x: x + epsilon, y: y - epsilon }),
-        dfdx.evaluate({ x: x - epsilon, y: y - epsilon }),
-      ]);
-    }
-
-    let dy = dfdy.evaluate({ x, y });
-    if (!isReasonableReal(dy)) {
-      dy = averageGoodResults([
-        dfdy.evaluate({ x: x + epsilon, y: y + epsilon }),
-        dfdy.evaluate({ x: x - epsilon, y: y + epsilon }),
-        dfdy.evaluate({ x: x + epsilon, y: y - epsilon }),
-        dfdy.evaluate({ x: x - epsilon, y: y - epsilon }),
+      [dx, dy] = firstGoodResult([
+        [
+          dfdx.evaluate({ x: x + epsilon, y: y + epsilon }),
+          dfdy.evaluate({ x: x + epsilon, y: y + epsilon }),
+        ],
+        [
+          dfdx.evaluate({ x: x - epsilon, y: y - epsilon }),
+          dfdy.evaluate({ x: x - epsilon, y: y - epsilon }),
+        ],
+        [
+          dfdx.evaluate({ x: x + epsilon, y: y - epsilon }),
+          dfdy.evaluate({ x: x + epsilon, y: y - epsilon }),
+        ],
+        [
+          dfdx.evaluate({ x: x - epsilon, y: y + epsilon }),
+          dfdy.evaluate({ x: x - epsilon, y: y + epsilon }),
+        ],
       ]);
     }
 
