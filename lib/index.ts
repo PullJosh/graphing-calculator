@@ -297,8 +297,8 @@ export function getLeafVertex(
         center
       ) as Point;
     } catch (err) {
-      console.error(err);
-      console.log(A, b);
+      // console.error(err);
+      // console.log(A, b);
       return center;
     }
   }
