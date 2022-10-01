@@ -1,11 +1,9 @@
 import { useState } from "react";
-import {
-  Graph,
-  GraphEquation,
-  GraphGrid,
-  GraphLine,
-  GraphPoint,
-} from "../components/Graph";
+import { Graph } from "../components/Graph";
+import { GraphEquation } from "../components/GraphEquation";
+import { GraphGrid } from "../components/GraphGrid";
+import { GraphPoint } from "../components/GraphPoint";
+import { GraphLine } from "../components/GraphLine";
 
 import {
   equationToGraphableExpression,

@@ -1,12 +1,10 @@
 import { Fragment, useEffect, useRef, useState } from "react";
-import {
-  Graph,
-  GraphEquation,
-  GraphExpression,
-  GraphGrid,
-} from "../components/Graph";
 import classNames from "classnames";
 import useSize from "@react-hook/size";
+import { Graph } from "../components/Graph";
+import { GraphExpression } from "../components/GraphExpression";
+import { GraphEquation } from "../components/GraphEquation";
+import { GraphGrid } from "../components/GraphGrid";
 
 type Item =
   | {
