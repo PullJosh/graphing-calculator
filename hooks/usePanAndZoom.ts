@@ -1,8 +1,14 @@
-import { MouseEventHandler, useCallback, useEffect, useState } from "react";
+import {
+  MouseEventHandler,
+  useCallback,
+  useEffect,
+  useState,
+} from "react";
 
 export function useDragPan<Value>(
   value: Value,
-  update: (oldValue: Value, dx: number, dy: number) => void
+  pan: (oldValue: Value, dx: number, dy: number) => void,
+  zoom: (zoomFactor: number, zoomCenter: [number, number]) => void
 ) {
   interface DragState {
     startX: number;
@@ -24,20 +30,20 @@ export function useDragPan<Value>(
     (event: MouseEvent) => {
       if (dragState === null) return;
 
-      update(
+      pan(
         dragState.startValue,
         event.clientX - dragState.startX,
         event.clientY - dragState.startY
       );
     },
-    [dragState, update]
+    [dragState, pan]
   );
 
   const onMouseUp = useCallback(
     (event: MouseEvent) => {
       if (dragState === null) return;
 
-      update(
+      pan(
         dragState.startValue,
         event.clientX - dragState.startX,
         event.clientY - dragState.startY
@@ -45,7 +51,16 @@ export function useDragPan<Value>(
 
       setDragState(null);
     },
-    [dragState, update]
+    [dragState, pan]
+  );
+
+  const onWheel = useCallback(
+    (event: React.WheelEvent) => {
+      let zoomAmount = -event.deltaY / 100;
+      // zoomAmount = normalizeZoomAmount(range, zoomAmount, minR, maxR);
+      zoom(1 - zoomAmount, [event.clientX - ]);
+    },
+    [zoom]
   );
 
   useEffect(() => {
@@ -58,5 +73,23 @@ export function useDragPan<Value>(
     };
   }, [onMouseMove, onMouseUp]);
 
-  return { onMouseDown };
+  return { onMouseDown, onWheel };
+}
+
+function normalizeZoomAmount(range, zoomAmount, minR, maxR) {
+  const currentR = Math.min(
+    (range[0][1] - range[0][0]) / 2,
+    (range[1][1] - range[1][0]) / 2
+  );
+  if (minR) {
+    if ((1 - zoomAmount) * currentR < minR) {
+      zoomAmount = 1 - minR / currentR;
+    }
+  }
+  if (maxR) {
+    if ((1 - zoomAmount) * currentR > maxR) {
+      zoomAmount = 1 - maxR / currentR;
+    }
+  }
+  return zoomAmount;
 }

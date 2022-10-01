@@ -2,14 +2,12 @@ import {
   createContext,
   ReactNode,
   useCallback,
-  useEffect,
   useLayoutEffect,
-  useRef,
   useState,
 } from "react";
 
-import type { Box, Contour, Point, TreeNode } from "../lib";
-import { useDragPan } from "../hooks/useDragPan";
+import type { Box } from "../lib";
+import { useDragPan as usePanAndZoom } from "../hooks/usePanAndZoom";
 
 interface GraphContext {
   width: number;
@@ -58,23 +56,43 @@ export function Graph({ width = 400, height = 400, children }: GraphProps) {
     });
   }, [width, height]);
 
-  const { onMouseDown } = useDragPan(graphWindow, (oldWindow, dx, dy) => {
-    const xScale = (oldWindow.maxX - oldWindow.minX) / width;
-    const yScale = (oldWindow.maxY - oldWindow.minY) / height;
+  const { onMouseDown, onWheel } = usePanAndZoom(
+    graphWindow,
+    (oldWindow, dx, dy) => {
+      const xScale = (oldWindow.maxX - oldWindow.minX) / width;
+      const yScale = (oldWindow.maxY - oldWindow.minY) / height;
 
-    setGraphWindow({
-      minX: oldWindow.minX - dx * xScale,
-      maxX: oldWindow.maxX - dx * xScale,
-      minY: oldWindow.minY + dy * yScale,
-      maxY: oldWindow.maxY + dy * yScale,
-    });
-  });
+      setGraphWindow({
+        minX: oldWindow.minX - dx * xScale,
+        maxX: oldWindow.maxX - dx * xScale,
+        minY: oldWindow.minY + dy * yScale,
+        maxY: oldWindow.maxY + dy * yScale,
+      });
+    },
+    (zoomFactor, zoomCenter) => {
+      setGraphWindow((oldWindow) => {
+        const newGraphWidth = (oldWindow.maxX - oldWindow.minX) * zoomFactor;
+        const newGraphHeight = (oldWindow.maxY - oldWindow.minY) * zoomFactor;
+
+        const centerX = (oldWindow.maxX + oldWindow.minX) / 2;
+        const centerY = (oldWindow.maxY + oldWindow.minY) / 2;
+
+        return {
+          minX: centerX - newGraphWidth / 2,
+          maxX: centerX + newGraphWidth / 2,
+          minY: centerY - newGraphHeight / 2,
+          maxY: centerY + newGraphHeight / 2,
+        };
+      });
+    }
+  );
 
   return (
     <div
       className="relative"
       style={{ width, height }}
       onMouseDown={onMouseDown}
+      onWheel={onWheel}
     >
       <GraphContext.Provider value={{ width, height, graphWindow }}>
         {children}
