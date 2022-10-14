@@ -10,7 +10,7 @@
     "build:wasm": "$HOME/.cargo/bin/wasm-pack build rust/joshs-graphing-calculator-lib",
     "build:wasm-vercel": "/vercel/.cargo/bin/wasm-pack build rust/joshs-graphing-calculator-lib",
     "build:next": "next build",
-    "build:vercel": "npm run install-build-tools && npm run build:wasm-vercel && npm run build:next",
+    "build:vercel": "npm run build:wasm-vercel && npm run build:next",
     "install-build-tools": "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && source \"$HOME/.cargo/env\" && curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh -s -- -y",
     "start": "next start",
     "lint": "next lint"
