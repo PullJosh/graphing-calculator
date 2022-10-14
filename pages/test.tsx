@@ -9,7 +9,7 @@ import { GraphContours } from "../components/GraphContours";
 import { GraphEquation } from "../components/GraphEquation";
 import { Contour } from "../lib";
 
-import { test } from "../rust/joshs-graphing-calculator-lib/pkg/joshs_graphing_calculator_lib";
+import { test } from "joshs-graphing-calculator-lib";
 
 import { ComputeEngine } from "@cortex-js/compute-engine";
 
