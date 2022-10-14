@@ -1,0 +1,16 @@
+{
+  "name": "joshs-graphing-calculator-lib",
+  "collaborators": [
+    "Josh Pullen <hello@joshuapullen.com>"
+  ],
+  "version": "0.1.0",
+  "files": [
+    "joshs_graphing_calculator_lib_bg.wasm",
+    "joshs_graphing_calculator_lib.js",
+    "joshs_graphing_calculator_lib_bg.js",
+    "joshs_graphing_calculator_lib.d.ts"
+  ],
+  "module": "joshs_graphing_calculator_lib.js",
+  "types": "joshs_graphing_calculator_lib.d.ts",
+  "sideEffects": false
+}

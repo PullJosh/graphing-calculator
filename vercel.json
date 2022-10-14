@@ -1,4 +1,0 @@
-{
-  "installCommand": "npm install && npm run install-build-tools",
-  "buildCommand": "npm run build:vercel"
-}
