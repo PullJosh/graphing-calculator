@@ -2,7 +2,8 @@ import {
   createContext,
   ReactNode,
   useCallback,
-  useLayoutEffect,
+  useEffect,
+  useRef,
   useState,
 } from "react";
 
@@ -32,7 +33,7 @@ export function Graph({ width = 400, height = 400, children }: GraphProps) {
   });
 
   // Update graph window when width or height changes
-  useLayoutEffect(() => {
+  useEffect(() => {
     setGraphWindow((graphWindow) => {
       let aspectRatio = width / height;
       if (isNaN(aspectRatio)) aspectRatio = 1;
@@ -56,8 +57,11 @@ export function Graph({ width = 400, height = 400, children }: GraphProps) {
     });
   }, [width, height]);
 
+  const ref = useRef<HTMLDivElement>(null);
+
   const { onMouseDown, onWheel } = usePanAndZoom(
     graphWindow,
+    ref,
     (oldWindow, dx, dy) => {
       const xScale = (oldWindow.maxX - oldWindow.minX) / width;
       const yScale = (oldWindow.maxY - oldWindow.minY) / height;
@@ -69,7 +73,7 @@ export function Graph({ width = 400, height = 400, children }: GraphProps) {
         maxY: oldWindow.maxY + dy * yScale,
       });
     },
-    (zoomFactor, zoomCenter) => {
+    (zoomFactor) => {
       setGraphWindow((oldWindow) => {
         const newGraphWidth = (oldWindow.maxX - oldWindow.minX) * zoomFactor;
         const newGraphHeight = (oldWindow.maxY - oldWindow.minY) * zoomFactor;
@@ -89,6 +93,7 @@ export function Graph({ width = 400, height = 400, children }: GraphProps) {
 
   return (
     <div
+      ref={ref}
       className="relative"
       style={{ width, height }}
       onMouseDown={onMouseDown}

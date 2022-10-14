@@ -109,7 +109,6 @@ export function GraphContours({ contours, color }: GraphContoursProps) {
         key={`c-${i}`}
         strokeWidth={50}
         className="stroke-transparent pointer-events-auto"
-        onMouseDown={onMouseDown}
         fill="none"
         points={points.map((pt) => pt.join(",")).join(" ")}
         strokeLinejoin="round"
@@ -163,7 +162,7 @@ export function GraphContours({ contours, color }: GraphContoursProps) {
           height={height}
           viewBox={`0 0 ${width} ${height}`}
         >
-          {touchTargets}
+          <g onMouseDown={onMouseDown}>{touchTargets}</g>
         </svg>
         {dragPointText}
       </GraphLayer>

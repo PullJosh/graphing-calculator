@@ -1,14 +1,17 @@
 import {
   MouseEventHandler,
+  RefObject,
   useCallback,
   useEffect,
   useState,
+  WheelEventHandler,
 } from "react";
 
 export function useDragPan<Value>(
   value: Value,
+  ref: RefObject<HTMLElement>,
   pan: (oldValue: Value, dx: number, dy: number) => void,
-  zoom: (zoomFactor: number, zoomCenter: [number, number]) => void
+  zoom: (zoomFactor: number) => void
 ) {
   interface DragState {
     startX: number;
@@ -54,11 +57,12 @@ export function useDragPan<Value>(
     [dragState, pan]
   );
 
-  const onWheel = useCallback(
-    (event: React.WheelEvent) => {
+  const onWheel: WheelEventHandler<HTMLElement> = useCallback(
+    (event) => {
+      event.preventDefault();
       let zoomAmount = -event.deltaY / 100;
       // zoomAmount = normalizeZoomAmount(range, zoomAmount, minR, maxR);
-      zoom(1 - zoomAmount, [event.clientX - ]);
+      zoom(1 - zoomAmount);
     },
     [zoom]
   );
@@ -66,30 +70,31 @@ export function useDragPan<Value>(
   useEffect(() => {
     window.addEventListener("mousemove", onMouseMove);
     window.addEventListener("mouseup", onMouseUp);
+    // ref.current?.addEventListener("wheel", onWheel);
 
     return () => {
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mouseup", onMouseUp);
     };
-  }, [onMouseMove, onMouseUp]);
+  }, [onMouseMove, onMouseUp, onWheel, ref]);
 
   return { onMouseDown, onWheel };
 }
 
-function normalizeZoomAmount(range, zoomAmount, minR, maxR) {
-  const currentR = Math.min(
-    (range[0][1] - range[0][0]) / 2,
-    (range[1][1] - range[1][0]) / 2
-  );
-  if (minR) {
-    if ((1 - zoomAmount) * currentR < minR) {
-      zoomAmount = 1 - minR / currentR;
-    }
-  }
-  if (maxR) {
-    if ((1 - zoomAmount) * currentR > maxR) {
-      zoomAmount = 1 - maxR / currentR;
-    }
-  }
-  return zoomAmount;
-}
+// function normalizeZoomAmount(range, zoomAmount, minR, maxR) {
+//   const currentR = Math.min(
+//     (range[0][1] - range[0][0]) / 2,
+//     (range[1][1] - range[1][0]) / 2
+//   );
+//   if (minR) {
+//     if ((1 - zoomAmount) * currentR < minR) {
+//       zoomAmount = 1 - minR / currentR;
+//     }
+//   }
+//   if (maxR) {
+//     if ((1 - zoomAmount) * currentR > maxR) {
+//       zoomAmount = 1 - maxR / currentR;
+//     }
+//   }
+//   return zoomAmount;
+// }

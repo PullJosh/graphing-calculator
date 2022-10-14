@@ -5,6 +5,8 @@
   "main": "index.js",
   "scripts": {
     "dev": "next dev",
+    "dev:wasm": "cargo watch -C rust/joshs-graphing-calculator-lib -s 'wasm-pack build'",
+    "build:wasm": "wasm-pack build rust/joshs-graphing-calculator-lib",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
@@ -12,15 +14,19 @@
   "author": "Josh Pullen",
   "license": "ISC",
   "dependencies": {
+    "@cortex-js/compute-engine": "^0.8.0",
     "@react-hook/size": "^2.1.2",
     "mathjs": "^11.1.0",
+    "mathquill": "^0.10.1-a",
     "next": "^12.2.5",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
+    "react-mathquill": "^1.0.2"
   },
   "devDependencies": {
     "@types/node": "^18.7.14",
     "@types/react": "^18.0.18",
+    "@wasm-tool/wasm-pack-plugin": "^1.6.0",
     "autoprefixer": "^10.4.8",
     "classnames": "^2.3.1",
     "eslint": "^8.23.0",
