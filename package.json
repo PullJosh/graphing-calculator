@@ -8,7 +8,7 @@
     "dev:wasm": "cargo watch -C rust/joshs-graphing-calculator-lib -s 'wasm-pack build'",
     "build": "npm run build:install-tools && npm run build:wasm && npm run build:next",
     "build:install-tools": "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && source \"$HOME/.cargo/env\" && curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh -s -- -y",
-    "build:wasm": "wasm-pack build rust/joshs-graphing-calculator-lib",
+    "build:wasm": "~/.cargo/bin/wasm-pack build rust/joshs-graphing-calculator-lib",
     "build:next": "next build",
     "start": "next start",
     "lint": "next lint"
