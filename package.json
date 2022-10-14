@@ -6,8 +6,9 @@
   "scripts": {
     "dev": "next dev",
     "dev:wasm": "cargo watch -C rust/joshs-graphing-calculator-lib -s 'wasm-pack build'",
+    "build": "npm run build:wasm && npm run build:next",
     "build:wasm": "wasm-pack build rust/joshs-graphing-calculator-lib",
-    "build": "next build",
+    "build:next": "next build",
     "start": "next start",
     "lint": "next lint"
   },
