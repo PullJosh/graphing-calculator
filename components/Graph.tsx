@@ -173,14 +173,6 @@ export function Graph({ width = 400, height = 400, children }: GraphProps) {
       <GraphContext.Provider value={{ width, height, graphWindow }}>
         {children}
       </GraphContext.Provider>
-      <style jsx global>
-        {`
-          html,
-          body {
-            overscroll-behavior-x: none !important;
-          }
-        `}
-      </style>
     </div>
   );
 }
