@@ -17,8 +17,6 @@ type Item =
       type: "equation";
       equation: string;
       color: "red" | "blue";
-      depth: string;
-      searchDepth: string;
     }
   | {
       type: "expression";
@@ -35,16 +33,12 @@ export default function Index() {
       type: "equation",
       equation: "y=x^2",
       color: "red",
-      depth: "7",
-      searchDepth: "3",
     },
     {
       id: 1,
       type: "equation",
       equation: "x^2+y^2=25",
       color: "blue",
-      depth: "7",
-      searchDepth: "3",
     },
     // { id: 2, type: "expression", expression: "x^2+y^2", color: "rainbow" },
   ]);
@@ -104,40 +98,6 @@ export default function Index() {
                 color={item.color}
                 setColor={(newColor) => setProp(item, "color", newColor)}
                 deleteSelf={() => deleteItem(index)}
-                depth={item.depth}
-                setDepth={(newDepth) => {
-                  if (BigInt(newDepth) < 0) {
-                    newDepth = "0";
-                  }
-                  if (BigInt(newDepth) > 8) {
-                    newDepth = "8";
-                  }
-                  setItem(item, {
-                    ...item,
-                    depth: newDepth,
-                    searchDepth:
-                      BigInt(newDepth) < BigInt(item.searchDepth)
-                        ? newDepth
-                        : item.searchDepth,
-                  });
-                }}
-                searchDepth={item.searchDepth}
-                setSearchDepth={(newSearchDepth) => {
-                  if (BigInt(newSearchDepth) < 0) {
-                    newSearchDepth = "0";
-                  }
-                  if (BigInt(newSearchDepth) > 5) {
-                    newSearchDepth = "5";
-                  }
-                  setItem(item, {
-                    ...item,
-                    depth:
-                      BigInt(item.depth) < BigInt(newSearchDepth)
-                        ? newSearchDepth
-                        : item.depth,
-                    searchDepth: newSearchDepth,
-                  });
-                }}
               />
             )}
             {item.type === "expression" && (
@@ -160,8 +120,6 @@ export default function Index() {
                 type: "equation",
                 equation: "y=x",
                 color: "red",
-                depth: "7",
-                searchDepth: "3",
               })
             }
             disabled={items.length >= 4}
@@ -214,12 +172,7 @@ export default function Index() {
           {items.map((item) => (
             <Fragment key={item.id}>
               {item.type === "equation" && (
-                <GraphEquation
-                  equation={item.equation}
-                  color={item.color}
-                  depth={BigInt(item.depth)}
-                  searchDepth={BigInt(item.searchDepth)}
-                />
+                <GraphEquation equation={item.equation} color={item.color} />
               )}
             </Fragment>
           ))}
@@ -235,10 +188,6 @@ interface EquationInputProps {
   color: "red" | "blue";
   setColor: (color: "red" | "blue") => void;
   deleteSelf: () => void;
-  depth: string;
-  setDepth: (depth: string) => void;
-  searchDepth: string;
-  setSearchDepth: (searchDepth: string) => void;
 }
 
 function EquationInput({
@@ -247,10 +196,6 @@ function EquationInput({
   color,
   setColor,
   deleteSelf,
-  depth,
-  setDepth,
-  searchDepth,
-  setSearchDepth,
 }: EquationInputProps) {
   return (
     <div className="relative flex border-b">
@@ -282,20 +227,6 @@ function EquationInput({
           }}
           options={{}}
         />
-        <div>
-          Depth:{" "}
-          <input
-            type="number"
-            value={depth}
-            onChange={(event) => setDepth(event.target.value)}
-          />
-          Search depth:{" "}
-          <input
-            type="number"
-            value={searchDepth}
-            onChange={(event) => setSearchDepth(event.target.value)}
-          />
-        </div>
       </div>
       {/* <input
         className={classNames(

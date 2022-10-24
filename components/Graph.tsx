@@ -6,11 +6,9 @@ import {
   useEffect,
   useRef,
   useState,
-  WheelEventHandler,
 } from "react";
 
 import type { Box } from "../lib";
-import { useDragPan as usePanAndZoom } from "../hooks/usePanAndZoom";
 
 interface GraphContext {
   width: number;
@@ -133,11 +131,9 @@ export function Graph({ width = 400, height = 400, children }: GraphProps) {
       const rect = ref.current!.getBoundingClientRect();
       const mx = (event.clientX - rect.left) / rect.width;
       const my = (event.clientY - rect.top) / rect.height;
-      console.log(mx, my);
       const centerX = oldWindow.minX + mx * (oldWindow.maxX - oldWindow.minX);
       const centerY =
         oldWindow.minY + (1 - my) * (oldWindow.maxY - oldWindow.minY);
-      console.log(centerX, centerY);
 
       return {
         minX: centerX - newGraphWidth * mx,

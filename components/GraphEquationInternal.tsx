@@ -1,10 +1,9 @@
 import { BoxedExpression } from "@cortex-js/compute-engine";
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
-import type { Box, Contour, Point } from "../lib";
+import type { Box, Point } from "../lib";
 import { GraphContext } from "./Graph";
 import { GraphContours } from "./GraphContours";
 
-import type { graph_equation_to_contours_json } from "joshs_graphing_calculator_lib";
 import { Remote, wrap } from "comlink";
 
 import { ComputeEngine } from "@cortex-js/compute-engine";
@@ -14,25 +13,13 @@ const ce = new ComputeEngine();
 interface GraphEquationProps {
   equation: string;
   color: "red" | "blue";
-  depth?: bigint;
-  searchDepth?: bigint;
 }
 
-export function GraphEquation({
-  equation,
-  color,
-  depth = 7n,
-  searchDepth = 3n,
-}: GraphEquationProps) {
+export function GraphEquation({ equation, color }: GraphEquationProps) {
   const { graphWindow } = useContext(GraphContext)!;
 
   const mathJSON = useMemo(() => ce.parse(equation), [equation]);
-  let contours = useContoursForEquation(
-    mathJSON,
-    graphWindow,
-    depth,
-    searchDepth
-  );
+  let contours = useContoursForEquation(mathJSON, graphWindow, 7n, 4n);
 
   return <GraphContours contours={contours} color={color} />;
 }
@@ -48,33 +35,58 @@ function useContoursForEquation(
   searchDepth = 3n
 ) {
   const busy = useRef(false);
+  const queued = useRef<{
+    equation: BoxedExpression;
+    desiredWindow: Box;
+    depth: bigint;
+    searchDepth: bigint;
+  } | null>(null);
   const [contours, setContours] = useState<Point[][]>([]);
 
   useEffect(() => {
-    if (busy.current) return;
+    if (busy.current) {
+      queued.current = { equation, desiredWindow, depth, searchDepth };
+      return;
+    }
 
-    console.log("Setting busy to true...");
-    busy.current = true;
-    (async function () {
+    async function performWork(
+      equation: BoxedExpression,
+      desiredWindow: Box,
+      depth: bigint,
+      searchDepth: bigint
+    ) {
       try {
         const regions = getOptimalRegions(desiredWindow);
-        const promise = api.graphAllRegionsToContours(
+        const getContours = api.graphAllRegionsToContours(
           JSON.stringify(equation),
           regions,
           depth,
           searchDepth
         );
-        console.log("Promise:", promise);
-        const contours = await promise;
+        const timeout = new Promise<Point[][]>((resolve) =>
+          setTimeout(() => resolve([]), 1000)
+        );
+        const contours = await Promise.race([getContours, timeout]);
         setContours(contours);
       } catch (err) {
         console.error(err);
         setContours([]);
       } finally {
-        console.log("Setting busy to false...");
-        busy.current = false;
+        if (queued.current) {
+          await performWork(
+            queued.current.equation,
+            queued.current.desiredWindow,
+            queued.current.depth,
+            queued.current.searchDepth
+          );
+        }
       }
-    })();
+    }
+
+    busy.current = true;
+    performWork(equation, desiredWindow, depth, searchDepth).then(() => {
+      busy.current = false;
+    });
   }, [busy, desiredWindow, equation, depth, searchDepth]);
 
   return contours;

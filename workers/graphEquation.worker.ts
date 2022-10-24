@@ -18,10 +18,8 @@ const api = {
           BigInt(region[0]),
           BigInt(region[1]),
           BigInt(region[2]),
-          8n,
-          5n
-          // depth,
-          // searchDepth
+          depth,
+          searchDepth
         )
       )
     );
