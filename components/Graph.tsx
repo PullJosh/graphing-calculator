@@ -1,10 +1,12 @@
 import {
   createContext,
+  MouseEventHandler,
   ReactNode,
   useCallback,
   useEffect,
   useRef,
   useState,
+  WheelEventHandler,
 } from "react";
 
 import type { Box } from "../lib";
@@ -59,10 +61,30 @@ export function Graph({ width = 400, height = 400, children }: GraphProps) {
 
   const ref = useRef<HTMLDivElement>(null);
 
-  const { onMouseDown, onWheel } = usePanAndZoom(
-    graphWindow,
-    ref,
-    (oldWindow, dx, dy) => {
+  interface DragState {
+    startX: number;
+    startY: number;
+    startValue: Box;
+  }
+
+  const [dragState, setDragState] = useState<DragState | null>(null);
+
+  const onMouseDown: MouseEventHandler = (event) => {
+    setDragState({
+      startX: event.clientX,
+      startY: event.clientY,
+      startValue: graphWindow,
+    });
+  };
+
+  const onMouseMove = useCallback(
+    (event: MouseEvent) => {
+      if (dragState === null) return;
+
+      const oldWindow = dragState.startValue;
+      const dx = event.clientX - dragState.startX;
+      const dy = event.clientY - dragState.startY;
+
       const xScale = (oldWindow.maxX - oldWindow.minX) / width;
       const yScale = (oldWindow.maxY - oldWindow.minY) / height;
 
@@ -73,23 +95,77 @@ export function Graph({ width = 400, height = 400, children }: GraphProps) {
         maxY: oldWindow.maxY + dy * yScale,
       });
     },
-    (zoomFactor) => {
-      setGraphWindow((oldWindow) => {
-        const newGraphWidth = (oldWindow.maxX - oldWindow.minX) * zoomFactor;
-        const newGraphHeight = (oldWindow.maxY - oldWindow.minY) * zoomFactor;
-
-        const centerX = (oldWindow.maxX + oldWindow.minX) / 2;
-        const centerY = (oldWindow.maxY + oldWindow.minY) / 2;
-
-        return {
-          minX: centerX - newGraphWidth / 2,
-          maxX: centerX + newGraphWidth / 2,
-          minY: centerY - newGraphHeight / 2,
-          maxY: centerY + newGraphHeight / 2,
-        };
-      });
-    }
+    [dragState, width, height]
   );
+
+  const onMouseUp = useCallback(
+    (event: MouseEvent) => {
+      if (dragState === null) return;
+
+      const oldWindow = dragState.startValue;
+      const dx = event.clientX - dragState.startX;
+      const dy = event.clientY - dragState.startY;
+
+      const xScale = (oldWindow.maxX - oldWindow.minX) / width;
+      const yScale = (oldWindow.maxY - oldWindow.minY) / height;
+
+      setGraphWindow({
+        minX: oldWindow.minX - dx * xScale,
+        maxX: oldWindow.maxX - dx * xScale,
+        minY: oldWindow.minY + dy * yScale,
+        maxY: oldWindow.maxY + dy * yScale,
+      });
+
+      setDragState(null);
+    },
+    [dragState, width, height]
+  );
+
+  const onWheel = useCallback((event: WheelEvent) => {
+    event.preventDefault();
+    let zoomAmount = -event.deltaY / 100;
+    setGraphWindow((oldWindow) => {
+      const newGraphWidth =
+        (oldWindow.maxX - oldWindow.minX) * (1 - zoomAmount);
+      const newGraphHeight =
+        (oldWindow.maxY - oldWindow.minY) * (1 - zoomAmount);
+
+      const rect = ref.current!.getBoundingClientRect();
+      const mx = (event.clientX - rect.left) / rect.width;
+      const my = (event.clientY - rect.top) / rect.height;
+      console.log(mx, my);
+      const centerX = oldWindow.minX + mx * (oldWindow.maxX - oldWindow.minX);
+      const centerY =
+        oldWindow.minY + (1 - my) * (oldWindow.maxY - oldWindow.minY);
+      console.log(centerX, centerY);
+
+      return {
+        minX: centerX - newGraphWidth * mx,
+        maxX: centerX + newGraphWidth * (1 - mx),
+        minY: centerY - newGraphHeight * (1 - my),
+        maxY: centerY + newGraphHeight * my,
+      };
+    });
+  }, []);
+
+  const onScroll = useCallback((event: Event) => {
+    event.preventDefault();
+  }, []);
+
+  useEffect(() => {
+    const elem = ref.current;
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+    elem?.addEventListener("wheel", onWheel, { passive: false });
+    elem?.addEventListener("scroll", onScroll, { passive: false });
+
+    return () => {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+      elem?.removeEventListener("wheel", onWheel);
+      elem?.removeEventListener("scroll", onScroll);
+    };
+  }, [onMouseMove, onMouseUp, onWheel, onScroll, ref]);
 
   return (
     <div
@@ -97,11 +173,18 @@ export function Graph({ width = 400, height = 400, children }: GraphProps) {
       className="relative"
       style={{ width, height }}
       onMouseDown={onMouseDown}
-      onWheel={onWheel}
     >
       <GraphContext.Provider value={{ width, height, graphWindow }}>
         {children}
       </GraphContext.Provider>
+      <style jsx global>
+        {`
+          html,
+          body {
+            overscroll-behavior-x: none !important;
+          }
+        `}
+      </style>
     </div>
   );
 }

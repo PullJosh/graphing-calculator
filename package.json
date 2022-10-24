@@ -8,21 +8,22 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "dev:wasm": "cargo watch -C rust/joshs-graphing-calculator-lib -s 'wasm-pack build'",
-    "build:wasm": "wasm-pack build rust/joshs-graphing-calculator-lib && rm ./rust/joshs-graphing-calculator-lib/pkg/.gitignore"
+    "dev:wasm": "cargo watch -C rust/joshs_graphing_calculator_lib -s 'wasm-pack build'",
+    "build:wasm": "wasm-pack build rust/joshs_graphing_calculator_lib && rm ./rust/joshs_graphing_calculator_lib/pkg/.gitignore"
   },
   "author": "Josh Pullen",
   "license": "ISC",
   "dependencies": {
     "@cortex-js/compute-engine": "^0.8.0",
     "@react-hook/size": "^2.1.2",
-    "joshs-graphing-calculator-lib": "file:rust/joshs-graphing-calculator-lib/pkg",
+    "comlink": "^4.3.1",
+    "joshs_graphing_calculator_lib": "file:rust/joshs_graphing_calculator_lib/pkg",
     "mathjs": "^11.1.0",
-    "mathquill": "^0.10.1-a",
+    "mathlive": "^0.83.0",
+    "memoizerific": "^1.11.3",
     "next": "^12.2.5",
     "react": "^17.0.2",
-    "react-dom": "^17.0.2",
-    "react-mathquill": "^1.0.2"
+    "react-dom": "^17.0.2"
   },
   "devDependencies": {
     "@types/node": "^18.7.14",

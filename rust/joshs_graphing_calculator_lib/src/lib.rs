@@ -8,9 +8,14 @@ mod graphing;
 
 use equation::*;
 use expression::*;
-use graphing::graph_equation_2d;
+use graphing::*;
 
 use serde_json::Value;
+
+use crate::graphing::GraphedEquation;
+
+pub use graphing::graph_equation_2d;
+pub use graphing::GraphBox;
 
 #[wasm_bindgen]
 extern "C" {
@@ -19,42 +24,95 @@ extern "C" {
 }
 
 #[wasm_bindgen]
-pub fn test(math_json: String) -> String {
+#[derive(Debug, Clone)]
+pub struct GraphRegion {
+    scale: i64,
+    x: i64,
+    y: i64,
+}
+
+#[wasm_bindgen]
+impl GraphRegion {
+    #[wasm_bindgen(constructor)]
+    pub fn new(scale: i64, x: i64, y: i64) -> GraphRegion {
+        GraphRegion { scale, x, y }
+    }
+    pub fn to_graph_box(&self) -> GraphBox {
+        GraphBox::new(
+            2.0_f64.powf(self.scale as f64) * self.x as f64,
+            2.0_f64.powf(self.scale as f64) * (self.x + 1) as f64,
+            2.0_f64.powf(self.scale as f64) * self.y as f64,
+            2.0_f64.powf(self.scale as f64) * (self.y + 1) as f64,
+        )
+    }
+}
+
+// Main function for testing purposes (so we can test stuff
+// without calling it from JavaScript)
+pub fn main() {
+    use std::time::Instant;
+
+    let now = Instant::now();
+
+    let area = GraphBox::new(1.0, 2.0, 1.0, 2.0);
+
+    fn f(x: f64, y: f64) -> f64 {
+        y - x * x
+    }
+
+    fn df(x: f64, y: f64) -> (f64, f64) {
+        (-2.0 * x, 1.0)
+    }
+    let df = get_cheating_gradient(&df);
+
+    for _ in 0..10000 {
+        get_leaf_key_points(&area, &f, &df);
+    }
+
+    let elapsed = now.elapsed();
+    println!("Elapsed: {:.2?}", elapsed);
+}
+
+pub fn graph_equation(
+    math_json: String,
+    scale: i64,
+    x: i64,
+    y: i64,
+    depth: i64,
+    search_depth: i64,
+) -> GraphedEquation {
     let value: Value = serde_json::from_str(&math_json).unwrap();
 
     let equation = mathjson_value_to_equation(&value).unwrap();
-    let expression = Plus::new(vec![
-        equation.left.clone(),
-        Box::new(Minus::new(equation.right.clone())),
-    ]);
+    // log(format!("Equation: {:?}", &equation));
 
-    log(format!("Equation: {:?}", &equation));
-    log(format!("Expression: {:?}", &expression));
-    log(format!(
-        "Derivative (x): {:?} = {:?}",
-        &expression.derivative("x"),
-        &expression.derivative("x").basic_simplify()
-    ));
-    log(format!(
-        "Derivative (y): {:?} = {:?}",
-        &expression.derivative("y"),
-        &expression.derivative("y").basic_simplify()
-    ));
+    let window = GraphRegion::new(scale, x, y).to_graph_box();
 
-    let window = graphing::GraphBox {
-        x_min: -10.0,
-        x_max: 10.0,
-        y_min: -10.0,
-        y_max: 10.0,
-    };
+    let graphed_equation = graph_equation_2d("x", "y", &window, &equation, depth, search_depth);
+    // log(format!(
+    //     "Contours length to make sure Rust isn't getting smart: {:?}",
+    //     graphed_equation.contours.len()
+    // ));
 
-    let graphed_equation = graph_equation_2d("x", "y", &window, &equation);
-
-    let json = serde_json::to_string(&graphed_equation).unwrap();
-    return json;
+    return graphed_equation;
+    // "{ \"contours\": [{ \"points\": [[0, 0], [1, 1]] }] }".to_string()
 }
 
-fn mathjson_value_to_equation(value: &Value) -> Option<Equation> {
+#[wasm_bindgen]
+pub fn graph_equation_to_contours_json(
+    math_json: String,
+    scale: i64,
+    x: i64,
+    y: i64,
+    depth: i64,
+    search_depth: i64,
+) -> String {
+    let graphed_equation = graph_equation(math_json, scale, x, y, depth, search_depth);
+    let contours_json = serde_json::to_string(&graphed_equation.contours).unwrap();
+    return contours_json;
+}
+
+pub fn mathjson_value_to_equation(value: &Value) -> Option<Equation> {
     if let Value::Array(a) = value {
         if a.len() != 3 {
             return None;

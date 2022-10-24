@@ -5,12 +5,20 @@ import { Graph } from "../components/Graph";
 import { GraphExpression } from "../components/GraphExpression";
 import { GraphEquation } from "../components/GraphEquation";
 import { GraphGrid } from "../components/GraphGrid";
+import dynamic from "next/dynamic";
+
+const MathLiveInput = dynamic(
+  () => import("../components/MathLiveInput").then((mod) => mod.MathLiveInput),
+  { ssr: false }
+);
 
 type Item =
   | {
       type: "equation";
       equation: string;
       color: "red" | "blue";
+      depth: string;
+      searchDepth: string;
     }
   | {
       type: "expression";
@@ -22,9 +30,23 @@ type ItemWithId = { id: number } & Item;
 
 export default function Index() {
   const [items, setItems] = useState<ItemWithId[]>([
-    { id: 0, type: "equation", equation: "y=x^2", color: "red" },
-    { id: 1, type: "equation", equation: "x^2+y^2=25", color: "blue" },
-    { id: 2, type: "expression", expression: "x^2+y^2", color: "rainbow" },
+    {
+      id: 0,
+      type: "equation",
+      equation: "y=x^2",
+      color: "red",
+      depth: "7",
+      searchDepth: "3",
+    },
+    {
+      id: 1,
+      type: "equation",
+      equation: "x^2+y^2=25",
+      color: "blue",
+      depth: "7",
+      searchDepth: "3",
+    },
+    // { id: 2, type: "expression", expression: "x^2+y^2", color: "rainbow" },
   ]);
 
   const setItem = (item: ItemWithId, newItem: ItemWithId) => {
@@ -82,6 +104,40 @@ export default function Index() {
                 color={item.color}
                 setColor={(newColor) => setProp(item, "color", newColor)}
                 deleteSelf={() => deleteItem(index)}
+                depth={item.depth}
+                setDepth={(newDepth) => {
+                  if (BigInt(newDepth) < 0) {
+                    newDepth = "0";
+                  }
+                  if (BigInt(newDepth) > 8) {
+                    newDepth = "8";
+                  }
+                  setItem(item, {
+                    ...item,
+                    depth: newDepth,
+                    searchDepth:
+                      BigInt(newDepth) < BigInt(item.searchDepth)
+                        ? newDepth
+                        : item.searchDepth,
+                  });
+                }}
+                searchDepth={item.searchDepth}
+                setSearchDepth={(newSearchDepth) => {
+                  if (BigInt(newSearchDepth) < 0) {
+                    newSearchDepth = "0";
+                  }
+                  if (BigInt(newSearchDepth) > 5) {
+                    newSearchDepth = "5";
+                  }
+                  setItem(item, {
+                    ...item,
+                    depth:
+                      BigInt(item.depth) < BigInt(newSearchDepth)
+                        ? newSearchDepth
+                        : item.depth,
+                    searchDepth: newSearchDepth,
+                  });
+                }}
               />
             )}
             {item.type === "expression" && (
@@ -100,7 +156,13 @@ export default function Index() {
         <div className="flex mt-4 space-x-2 justify-center">
           <button
             onClick={() =>
-              insertItem({ type: "equation", equation: "y=x", color: "red" })
+              insertItem({
+                type: "equation",
+                equation: "y=x",
+                color: "red",
+                depth: "7",
+                searchDepth: "3",
+              })
             }
             disabled={items.length >= 4}
             className="bg-gray-100 border px-2 py-1 rounded disabled:opacity-50 disabled:cursor-not-allowed"
@@ -148,14 +210,15 @@ export default function Index() {
               )}
             </Fragment>
           ))}
-          <GraphGrid xStep={1} yStep={1} />
+          <GraphGrid />
           {items.map((item) => (
             <Fragment key={item.id}>
               {item.type === "equation" && (
                 <GraphEquation
                   equation={item.equation}
                   color={item.color}
-                  debug={debug}
+                  depth={BigInt(item.depth)}
+                  searchDepth={BigInt(item.searchDepth)}
                 />
               )}
             </Fragment>
@@ -172,6 +235,10 @@ interface EquationInputProps {
   color: "red" | "blue";
   setColor: (color: "red" | "blue") => void;
   deleteSelf: () => void;
+  depth: string;
+  setDepth: (depth: string) => void;
+  searchDepth: string;
+  setSearchDepth: (searchDepth: string) => void;
 }
 
 function EquationInput({
@@ -180,6 +247,10 @@ function EquationInput({
   color,
   setColor,
   deleteSelf,
+  depth,
+  setDepth,
+  searchDepth,
+  setSearchDepth,
 }: EquationInputProps) {
   return (
     <div className="relative flex border-b">
@@ -194,7 +265,39 @@ function EquationInput({
           <span className="sr-only">Change color</span>
         </button>
       </div>
-      <input
+      <div
+        className={classNames(
+          "block w-full flex-grow self-stretch px-3 py-2 focus:outline-none",
+          {
+            "selection:bg-red-600/20 selection:text-red-900": color === "red",
+            "selection:bg-blue-600/20 selection:text-blue-900":
+              color === "blue",
+          }
+        )}
+      >
+        <MathLiveInput
+          latex={equation}
+          onChange={(latex) => {
+            setEquation(latex);
+          }}
+          options={{}}
+        />
+        <div>
+          Depth:{" "}
+          <input
+            type="number"
+            value={depth}
+            onChange={(event) => setDepth(event.target.value)}
+          />
+          Search depth:{" "}
+          <input
+            type="number"
+            value={searchDepth}
+            onChange={(event) => setSearchDepth(event.target.value)}
+          />
+        </div>
+      </div>
+      {/* <input
         className={classNames(
           "block w-full flex-grow self-stretch px-3 py-2 focus:outline-none",
           {
@@ -208,7 +311,7 @@ function EquationInput({
         onChange={(event) => {
           setEquation(event.target.value);
         }}
-      />
+      /> */}
       <button
         onClick={() => deleteSelf()}
         className="absolute top-0 right-0 w-5 h-5 rounded-bl bg-gray-200 flex items-center justify-center"

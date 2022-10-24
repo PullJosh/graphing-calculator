@@ -119,11 +119,11 @@ export function GraphContours({ contours, color }: GraphContoursProps) {
 
   let dragPointText: ReactNode = null;
   if (dragState.dragging) {
-    console.log(dragState.pos);
     const nearestPoint = findNearestPoint(contours, dragState.pos);
     const [x, y] = toScreenPos(nearestPoint);
     children.push(
       <circle
+        key="drag-point"
         cx={x}
         cy={y}
         r={8}

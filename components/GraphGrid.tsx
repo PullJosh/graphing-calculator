@@ -6,12 +6,7 @@ import {
   GraphLayer,
 } from "./Graph";
 
-interface GraphGridProps {
-  xStep: number;
-  yStep: number;
-}
-
-export function GraphGrid({ xStep, yStep }: GraphGridProps) {
+export function GraphGrid() {
   const { width, height, graphWindow } = useContext(GraphContext)!;
 
   const { toScreenPos } = useCoordinateTransformations(
@@ -19,6 +14,14 @@ export function GraphGrid({ xStep, yStep }: GraphGridProps) {
     width,
     height
   );
+
+  const maxDim = Math.max(
+    graphWindow.maxX - graphWindow.minX,
+    graphWindow.maxY - graphWindow.minY
+  );
+  const scale = Math.ceil(Math.log2(maxDim)) - 4;
+  const xStep = 2 ** scale;
+  const yStep = 2 ** scale;
 
   const children: ReactNode[] = [];
 

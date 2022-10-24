@@ -1,58 +1,35 @@
-import * as math from "mathjs";
-import {
-  Contour,
-  equationToGraphableExpression,
-  expressionToFunctionAndGradient,
-  generateQuadtree,
-  getDualContours,
-  getLeafConnections,
-  getMarchingSquaresContours,
-  TreeNode,
-} from "../lib";
+import { graph_equation_to_contours_json as graphEquationToContoursJSON } from "joshs_graphing_calculator_lib";
 
-let working = false;
+import { expose } from "comlink";
+import type { Contour } from "../lib";
 
-addEventListener("message", (event) => {
-  // Ignore updates while currently working
-  if (working) return;
+const api = {
+  // graphEquationToContoursJSON: graph_equation_to_contours_json,
+  graphAllRegionsToContours: async (
+    equation: string,
+    regions: number[][],
+    depth: bigint,
+    searchDepth: bigint
+  ) => {
+    const resultsJSON = await Promise.all(
+      regions.map((region) =>
+        graphEquationToContoursJSON(
+          equation,
+          BigInt(region[0]),
+          BigInt(region[1]),
+          BigInt(region[2]),
+          8n,
+          5n
+          // depth,
+          // searchDepth
+        )
+      )
+    );
+    const result: Contour[] = resultsJSON.flatMap((json) => JSON.parse(json));
+    return result.map((contour) => contour.points).slice(0, 20);
+  },
+};
 
-  working = true;
+export type API = typeof api;
 
-  const { data } = event;
-  let { equation, graphWindow } = data;
-
-  try {
-    const node = math.parse(equation.replaceAll("=", "=="));
-    const expressionSet = equationToGraphableExpression(node);
-
-    let contours: Contour[] = [];
-    let marchingSquaresContours: Contour[] = [];
-    let tree: TreeNode | null = null;
-
-    const { expression } = expressionSet;
-    try {
-      const [f, df] = expressionToFunctionAndGradient(expression);
-
-      tree = generateQuadtree(f, graphWindow, df, 5, 6);
-
-      marchingSquaresContours = [
-        ...marchingSquaresContours,
-        ...getMarchingSquaresContours(tree),
-      ];
-
-      const leafConnections = getLeafConnections(f, tree);
-      const dualContours = getDualContours(leafConnections);
-
-      contours = [...contours, ...dualContours];
-    } catch (err) {
-      console.error(err);
-    }
-
-    postMessage({ tree, contours, marchingSquaresContours });
-  } catch (err) {
-    console.error(err);
-    postMessage({ contours: [] });
-  }
-
-  working = false;
-});
+expose(api);
