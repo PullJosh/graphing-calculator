@@ -7,19 +7,9 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use crate::point::*;
-
-pub struct Segment1D(Point1D, Point1D);
-pub struct Segment2D(Point2D, Point2D);
-// pub struct Segment3D(Point3D, Point3D);
-
-// pub struct Triangle1D(Point1D, Point1D, Point1D);
-pub struct Triangle2D(Point2D, Point2D, Point2D);
-pub struct Triangle3D(Point3D, Point3D, Point3D);
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Contour {
-    points: Vec<(f64, f64)>,
-}
+use crate::segment::*;
+use crate::triangle::*;
+use crate::vector::*;
 
 #[wasm_bindgen]
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -79,8 +69,8 @@ pub struct QuadTreeRootNode {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct QuadTreeLeafNode {
-    edge_points: Vec<(f64, f64)>,
-    vertex: (f64, f64),
+    edge_points: Vec<Point2D>,
+    vertex: Point2D,
 }
 
 pub fn graph_equation_2d(
@@ -90,7 +80,7 @@ pub fn graph_equation_2d(
     equation: &Equation,
     depth: i64,
     search_depth: i64,
-) -> Vec<Contour> {
+) -> Vec<Contour2D> {
     if let Some(var) = equation.left.as_any().downcast_ref::<Variable>() {
         if var.name == var1 {
             if equation.right.count_var_instances(var1) == 0 {
@@ -121,7 +111,7 @@ pub fn graph_equation_2d(
         Box::new(Minus::new(equation.right.clone())),
     ]);
 
-    let f = |x: f64, y: f64| {
+    let f = |Point2D(x, y)| {
         let mut variables = HashMap::new();
         variables.insert(var1, x);
         variables.insert(var2, y);
@@ -130,17 +120,17 @@ pub fn graph_equation_2d(
 
     let dx = expression.derivative(var1).basic_simplify();
     let dy = expression.derivative(var2).basic_simplify();
-    let df = |x: f64, y: f64| {
+    let df = |Point2D(x, y)| {
         let mut variables = HashMap::new();
         variables.insert(var1, x);
         variables.insert(var2, y);
-        (dx.evaluate(&variables), dy.evaluate(&variables))
+        Vec2D(dx.evaluate(&variables), dy.evaluate(&variables))
     };
     let df = get_cheating_gradient(&df);
 
     let tree = build_tree(depth, search_depth, window, &f, &df, var1, var2);
 
-    get_combined_contours(&tree)
+    get_contours_2d(&tree)
 }
 
 pub fn graph_function_2d(
@@ -148,8 +138,9 @@ pub fn graph_function_2d(
     window: &GraphBox,
     expression: Box<dyn Expression>,
     flipped: bool,
-) -> Vec<Contour> {
-    let mut contour = Contour { points: vec![] };
+) -> Vec<Contour2D> {
+    let mut contours = vec![];
+    let mut contour: Contour2D = vec![];
 
     let mut variables = HashMap::new();
     use rand::Rng;
@@ -166,31 +157,35 @@ pub fn graph_function_2d(
             };
         let x = window.x_min + (window.x_max - window.x_min) * randomized_i / 500.0;
         variables.insert(var, x);
+
         let y = expression.evaluate(&variables);
+
         if flipped {
-            contour.points.push((y, x));
+            contour.push(Point2D(y, x));
         } else {
-            contour.points.push((x, y));
+            contour.push(Point2D(x, y));
         }
     }
 
-    vec![contour]
+    contours.push(contour);
+
+    contours
 }
 
 fn build_tree(
     depth: i64,
     search_depth: i64,
     area: &GraphBox,
-    f: &impl Fn(f64, f64) -> f64,
-    df: &impl Fn(f64, f64) -> (f64, f64),
+    f: &impl Fn(Point2D) -> f64,
+    df: &impl Fn(Point2D) -> Vec2D,
     var1: &str,
     var2: &str,
 ) -> QuadTreeNode {
     let vertex_values = [
-        f(area.x_min, area.y_min),
-        f(area.x_max, area.y_min),
-        f(area.x_min, area.y_max),
-        f(area.x_max, area.y_max),
+        f(Point2D(area.x_min, area.y_min)),
+        f(Point2D(area.x_max, area.y_min)),
+        f(Point2D(area.x_min, area.y_max)),
+        f(Point2D(area.x_max, area.y_max)),
     ];
 
     if search_depth <= 0 {
@@ -285,33 +280,33 @@ fn build_tree(
 }
 
 pub fn get_cheating_gradient<'a>(
-    df: &'a dyn Fn(f64, f64) -> (f64, f64),
-) -> Box<dyn Fn(f64, f64) -> (f64, f64) + 'a> {
-    fn is_valid_result(result: &(f64, f64)) -> bool {
+    df: &'a dyn Fn(Point2D) -> Vec2D,
+) -> Box<dyn Fn(Point2D) -> Vec2D + 'a> {
+    fn is_valid_result(result: &Vec2D) -> bool {
         result.0.is_finite() && result.1.is_finite()
     }
 
-    Box::new(move |x: f64, y: f64| {
+    Box::new(move |Point2D(x, y)| {
         let epsilon = 0.00001;
-        let mut result = df(x, y);
+        let mut result = df(Point2D(x, y));
         if !is_valid_result(&result) {
-            result = df(x + epsilon, y + epsilon);
+            result = df(Point2D(x + epsilon, y + epsilon));
             if !is_valid_result(&result) {
-                result = df(x - epsilon, y - epsilon);
+                result = df(Point2D(x - epsilon, y - epsilon));
                 if !is_valid_result(&result) {
-                    result = df(x + epsilon, y - epsilon);
+                    result = df(Point2D(x + epsilon, y - epsilon));
                     if !is_valid_result(&result) {
-                        result = df(x - epsilon, y + epsilon);
+                        result = df(Point2D(x - epsilon, y + epsilon));
                         if !is_valid_result(&result) {
-                            result = df(x + epsilon, y);
+                            result = df(Point2D(x + epsilon, y));
                             if !is_valid_result(&result) {
-                                result = df(x - epsilon, y);
+                                result = df(Point2D(x - epsilon, y));
                                 if !is_valid_result(&result) {
-                                    result = df(x, y + epsilon);
+                                    result = df(Point2D(x, y + epsilon));
                                     if !is_valid_result(&result) {
-                                        result = df(x, y - epsilon);
+                                        result = df(Point2D(x, y - epsilon));
                                         if !is_valid_result(&result) {
-                                            result = (0.0, 0.0);
+                                            result = Vec2D(0.0, 0.0);
                                         }
                                     }
                                 }
@@ -326,84 +321,67 @@ pub fn get_cheating_gradient<'a>(
     })
 }
 
-fn get_combined_contours(tree_node: &QuadTreeNode) -> Vec<Contour> {
-    fn get_contours(tree_node: &QuadTreeNode) -> Vec<Contour> {
+fn get_contours_2d(tree_node: &QuadTreeNode) -> Vec<Contour2D> {
+    fn get_segments(tree_node: &QuadTreeNode) -> Vec<Segment2D> {
         match tree_node {
             QuadTreeNode::Root(root) => {
-                let mut contours = vec![];
+                let mut segments = vec![];
                 for child in &root.children {
-                    contours.append(&mut get_contours(child));
+                    segments.append(&mut get_segments(child));
                 }
-                contours
+                segments
             }
             QuadTreeNode::Leaf(leaf) => {
-                let mut contours = vec![];
+                let mut segments = vec![];
                 for point in &leaf.edge_points {
-                    contours.push(Contour {
-                        points: vec![point.clone(), leaf.vertex.clone()],
-                    });
+                    segments.push(Segment2D(point.clone(), leaf.vertex.clone()));
                 }
-                contours
+                segments
             }
             _ => vec![],
         }
     }
 
-    simplify_contours(&get_contours(tree_node))
+    let segments = get_segments(tree_node);
+    let contours = segments_to_contours(&segments);
+    contours
 }
 
-fn simplify_contours(contours: &Vec<Contour>) -> Vec<Contour> {
-    let mut simplified_contours = contours.clone();
-
-    for (i, contour) in simplified_contours.iter().enumerate() {
-        for (j, other_contour) in simplified_contours.iter().enumerate() {
-            if i == j {
-                continue;
-            }
-            let mut merged_contour: Option<Contour> = None;
-            if contour.points[0] == other_contour.points[0] {
-                let mut new_points = contour.points.clone();
-                new_points.remove(0);
-                new_points.reverse();
-                new_points.append(&mut other_contour.points.clone());
-                merged_contour = Some(Contour { points: new_points });
-            }
-            if contour.points[contour.points.len() - 1] == other_contour.points[0] {
-                let mut new_points = contour.points.clone();
-                new_points.remove(new_points.len() - 1);
-                new_points.append(&mut other_contour.points.clone());
-                merged_contour = Some(Contour { points: new_points });
-            }
-            if contour.points[contour.points.len() - 1]
-                == other_contour.points[other_contour.points.len() - 1]
-            {
-                let mut new_points = contour.points.clone();
-                new_points.remove(new_points.len() - 1);
-                let mut new_points_2 = other_contour.points.clone();
-                new_points_2.reverse();
-                new_points.append(&mut new_points_2);
-                merged_contour = Some(Contour { points: new_points });
-            }
-
-            if let Some(merged_contour) = merged_contour {
-                // Remove i and j. Remove the larger index first so that the
-                // smaller index remains correct (elements not shifted)
-                simplified_contours.remove(i.max(j));
-                simplified_contours.remove(i.min(j));
-
-                simplified_contours.push(merged_contour);
-                return simplify_contours(&simplified_contours);
+fn segments_to_contours(segments: &Vec<Segment2D>) -> Vec<Contour2D> {
+    let mut contours: Vec<Contour2D> = vec![];
+    for segment in segments {
+        let mut done = false;
+        for contour in &mut contours {
+            if contour.last().unwrap() == &segment.0 {
+                contour.push(segment.1.clone());
+                done = true;
+                break;
+            } else if contour.first().unwrap() == &segment.1 {
+                contour.insert(0, segment.0.clone());
+                done = true;
+                break;
+            } else if contour.last().unwrap() == &segment.1 {
+                contour.push(segment.0.clone());
+                done = true;
+                break;
+            } else if contour.first().unwrap() == &segment.0 {
+                contour.insert(0, segment.1.clone());
+                done = true;
+                break;
             }
         }
+        if !done {
+            contours.push(vec![segment.0.clone(), segment.1.clone()]);
+        }
     }
-    simplified_contours
+    contours
 }
 
 pub fn get_leaf_key_points(
     area: &GraphBox,
-    f: &dyn Fn(f64, f64) -> f64,
-    df: &dyn Fn(f64, f64) -> (f64, f64),
-) -> (Vec<(f64, f64)>, (f64, f64)) {
+    f: &dyn Fn(Point2D) -> f64,
+    df: &dyn Fn(Point2D) -> Vec2D,
+) -> (Vec<Point2D>, Point2D) {
     fn find_zero(start: f64, start_val: f64, end: f64, end_val: f64) -> f64 {
         let t = if start_val == end_val {
             0.5
@@ -414,45 +392,45 @@ pub fn get_leaf_key_points(
     }
 
     let corner_values = [
-        f(area.x_min, area.y_min),
-        f(area.x_max, area.y_min),
-        f(area.x_min, area.y_max),
-        f(area.x_max, area.y_max),
+        f(Point2D(area.x_min, area.y_min)),
+        f(Point2D(area.x_max, area.y_min)),
+        f(Point2D(area.x_min, area.y_max)),
+        f(Point2D(area.x_max, area.y_max)),
     ];
 
-    let mut edge_points: Vec<(f64, f64)> = vec![];
+    let mut edge_points: Vec<Point2D> = vec![];
     if corner_values[0] == 0.0 {
-        edge_points.push((area.x_min, area.y_min));
+        edge_points.push(Point2D(area.x_min, area.y_min));
     }
     if corner_values[1] == 0.0 {
-        edge_points.push((area.x_max, area.y_min));
+        edge_points.push(Point2D(area.x_max, area.y_min));
     }
     if corner_values[2] == 0.0 {
-        edge_points.push((area.x_min, area.y_max));
+        edge_points.push(Point2D(area.x_min, area.y_max));
     }
     if corner_values[3] == 0.0 {
-        edge_points.push((area.x_max, area.y_max));
+        edge_points.push(Point2D(area.x_max, area.y_max));
     }
     if corner_values[0] * corner_values[1] < 0.0 {
-        edge_points.push((
+        edge_points.push(Point2D(
             find_zero(area.x_min, corner_values[0], area.x_max, corner_values[1]),
             area.y_min,
         ));
     }
     if corner_values[0] * corner_values[2] < 0.0 {
-        edge_points.push((
+        edge_points.push(Point2D(
             area.x_min,
             find_zero(area.y_min, corner_values[0], area.y_max, corner_values[2]),
         ));
     }
     if corner_values[1] * corner_values[3] < 0.0 {
-        edge_points.push((
+        edge_points.push(Point2D(
             area.x_max,
             find_zero(area.y_min, corner_values[1], area.y_max, corner_values[3]),
         ));
     }
     if corner_values[2] * corner_values[3] < 0.0 {
-        edge_points.push((
+        edge_points.push(Point2D(
             find_zero(area.x_min, corner_values[2], area.x_max, corner_values[3]),
             area.y_max,
         ));
@@ -461,32 +439,23 @@ pub fn get_leaf_key_points(
     if edge_points.len() == 0 {
         return (
             edge_points,
-            (
+            Point2D(
                 (area.x_min + area.x_max) / 2.0,
                 (area.y_min + area.y_max) / 2.0,
             ),
         );
     }
 
-    let mut mean_point = (0.0, 0.0);
+    let mut mean_point = Point2D(0.0, 0.0);
     for p in &edge_points {
-        mean_point.0 += p.0;
-        mean_point.1 += p.1;
+        mean_point += *p;
     }
     mean_point.0 /= edge_points.len() as f64;
     mean_point.1 /= edge_points.len() as f64;
 
-    fn normalize(v: (f64, f64)) -> (f64, f64) {
-        let mut len = (v.0 * v.0 + v.1 * v.1).sqrt();
-        if len == 0.0 {
-            len = 1.0
-        }
-        (v.0 / len, v.1 / len)
-    }
-
     let normals = edge_points
         .iter()
-        .map(|p| normalize(df(p.0, p.1)))
+        .map(|p| df(p.clone()).normalize())
         .collect::<Vec<_>>();
 
     let mut mat_a_t_a = OMatrix::<f64, U2, U2>::zeros();
@@ -508,13 +477,13 @@ pub fn get_leaf_key_points(
     fn solve_2(
         mat_a_t_a: &OMatrix<f64, U2, U2>,
         mat_a_t_b: &OMatrix<f64, U2, U1>,
-        mean_point: &(f64, f64),
-    ) -> (f64, f64) {
+        mean_point: &Point2D,
+    ) -> Point2D {
         let mat_a_t_a_inv = mat_a_t_a.pseudo_inverse(0.0000001);
         match mat_a_t_a_inv {
             Ok(mat_a_t_a_inv) => {
                 let mat_a_t_a_inv_b = &mat_a_t_a_inv * mat_a_t_b;
-                (
+                Point2D(
                     mat_a_t_a_inv_b[(0, 0)] + mean_point.0,
                     mat_a_t_a_inv_b[(1, 0)] + mean_point.1,
                 )
@@ -549,13 +518,13 @@ pub fn get_leaf_key_points(
 
     fn solve_3(
         (mat_a_t_a, mat_a_t_b): (OMatrix<f64, U3, U3>, OMatrix<f64, U3, U1>),
-        mean_point: &(f64, f64),
-    ) -> (f64, f64) {
+        mean_point: &Point2D,
+    ) -> Point2D {
         let mat_a_t_a_inv = mat_a_t_a.pseudo_inverse(0.0000001);
         match mat_a_t_a_inv {
             Ok(mat_a_t_a_inv) => {
                 let mat_a_t_a_inv_b = &mat_a_t_a_inv * mat_a_t_b;
-                (
+                Point2D(
                     mat_a_t_a_inv_b[(0, 0)] + mean_point.0,
                     mat_a_t_a_inv_b[(1, 0)] + mean_point.1,
                 )
@@ -596,24 +565,20 @@ pub fn get_leaf_key_points(
         .map(|(_, pt)| pt)
         .collect();
 
-    fn get_solution_error(
-        solution: &(f64, f64),
-        normals: &[(f64, f64)],
-        edge_points: &[(f64, f64)],
-    ) -> f64 {
+    fn get_solution_error(solution: &Point2D, normals: &[Vec2D], edge_points: &[Point2D]) -> f64 {
         let mut error = 0.0;
         for i in 0..normals.len() {
-            error += (normals[i].0 * (edge_points[i].0 - solution.0)
-                + normals[i].1 * (edge_points[i].1 - solution.1))
+            error += normals[i]
+                .dot(&(edge_points[i] - *solution).to_vec())
                 .powi(2);
         }
         error
     }
     fn get_best_solution(
-        solutions: &Vec<&(f64, f64)>,
-        normals: &[(f64, f64)],
-        edge_points: &[(f64, f64)],
-    ) -> (f64, f64) {
+        solutions: &Vec<&Point2D>,
+        normals: &[Vec2D],
+        edge_points: &[Point2D],
+    ) -> Point2D {
         let mut best_solution = solutions[0];
         let mut best_error = get_solution_error(best_solution, &normals, &edge_points);
         for solution in solutions.iter().skip(1) {
@@ -631,5 +596,5 @@ pub fn get_leaf_key_points(
         return (edge_points, point);
     }
 
-    (edge_points, (area.x_min, area.y_min))
+    (edge_points, Point2D(area.x_min, area.y_min))
 }

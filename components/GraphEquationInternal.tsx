@@ -19,16 +19,16 @@ export function GraphEquation({ equation, color }: GraphEquationProps) {
   const { graphWindow } = useContext(GraphContext)!;
 
   const mathJSON = useMemo(() => ce.parse(equation), [equation]);
-  let contours = useContoursForEquation(mathJSON, graphWindow, 7n, 4n);
+  let flatContours = useFlatContoursForEquation(mathJSON, graphWindow, 7n, 4n);
 
-  return <GraphContours contours={contours} color={color} />;
+  return <GraphContours flatContours={flatContours} color={color} />;
 }
 
 const api: Remote<API> = wrap(
   new Worker(new URL("../workers/graphEquation.worker.ts", import.meta.url))
 );
 
-function useContoursForEquation(
+function useFlatContoursForEquation(
   equation: BoxedExpression,
   desiredWindow: Box,
   depth = 7n,
@@ -41,7 +41,9 @@ function useContoursForEquation(
     depth: bigint;
     searchDepth: bigint;
   } | null>(null);
-  const [contours, setContours] = useState<Point[][]>([]);
+  const [flatContours, setFlatContours] = useState<Float64Array>(
+    new Float64Array(0)
+  );
 
   useEffect(() => {
     if (busy.current) {
@@ -57,20 +59,20 @@ function useContoursForEquation(
     ) {
       try {
         const regions = getOptimalRegions(desiredWindow);
-        const getContours = api.graphAllRegionsToContours(
+        const getFlatContours = api.graphAllRegionsToFlatContours(
           JSON.stringify(equation),
           regions,
           depth,
           searchDepth
         );
-        const timeout = new Promise<Point[][]>((resolve) =>
-          setTimeout(() => resolve([]), 1000)
+        const timeout = new Promise<Float64Array>((resolve) =>
+          setTimeout(() => resolve(new Float64Array(0)), 1000)
         );
-        const contours = await Promise.race([getContours, timeout]);
-        setContours(contours);
+        const flatContours = await Promise.race([getFlatContours, timeout]);
+        setFlatContours(flatContours);
       } catch (err) {
         console.error(err);
-        setContours([]);
+        setFlatContours(new Float64Array(0));
       } finally {
         if (queued.current) {
           const { equation, desiredWindow, depth, searchDepth } =
@@ -87,7 +89,7 @@ function useContoursForEquation(
     });
   }, [busy, desiredWindow, equation, depth, searchDepth]);
 
-  return contours;
+  return flatContours;
 }
 
 function getOptimalRegions(coverWindow: Box) {

@@ -15,11 +15,11 @@ import {
 } from "./Graph";
 
 interface GraphContoursProps {
-  contours: Point[][];
+  flatContours: Float64Array;
   color: "red" | "blue";
 }
 
-export function GraphContours({ contours, color }: GraphContoursProps) {
+export function GraphContours({ flatContours, color }: GraphContoursProps) {
   const { width, height, graphWindow } = useContext(GraphContext)!;
 
   const { toScreenPos, toGraphPos } = useCoordinateTransformations(
@@ -81,45 +81,45 @@ export function GraphContours({ contours, color }: GraphContoursProps) {
   let children: ReactNode[] = [];
   let touchTargets: ReactNode[] = [];
 
-  for (let i = 0; i < contours.length; i++) {
-    const contour = contours[i];
-    let points: Point[] = [];
+  let points: [number, number][] = [];
+  for (let i = 0; i < flatContours!.length; i += 2) {
+    if (flatContours![i] === Infinity) {
+      children.push(
+        <polyline
+          key={`c-${i}`}
+          strokeWidth={3}
+          className={classNames({
+            "stroke-red-600": color === "red",
+            "stroke-blue-600": color === "blue",
+          })}
+          fill="none"
+          points={points.map((pt) => pt.join(",")).join(" ")}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+      );
 
-    for (const point of contour) {
-      points.push(toScreenPos(point));
+      touchTargets.push(
+        <polyline
+          key={`c-${i}`}
+          strokeWidth={30}
+          className="stroke-transparent pointer-events-auto"
+          fill="none"
+          points={points.map((pt) => pt.join(",")).join(" ")}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+      );
+
+      points = [];
+    } else {
+      points.push(toScreenPos([flatContours![i], flatContours![i + 1]]));
     }
-
-    children.push(
-      <polyline
-        key={`c-${i}`}
-        strokeWidth={3}
-        className={classNames({
-          "stroke-red-600": color === "red",
-          "stroke-blue-600": color === "blue",
-        })}
-        fill="none"
-        points={points.map((pt) => pt.join(",")).join(" ")}
-        strokeLinejoin="round"
-        strokeLinecap="round"
-      />
-    );
-
-    touchTargets.push(
-      <polyline
-        key={`c-${i}`}
-        strokeWidth={50}
-        className="stroke-transparent pointer-events-auto"
-        fill="none"
-        points={points.map((pt) => pt.join(",")).join(" ")}
-        strokeLinejoin="round"
-        strokeLinecap="round"
-      />
-    );
   }
 
   let dragPointText: ReactNode = null;
   if (dragState.dragging) {
-    const nearestPoint = findNearestPoint(contours, dragState.pos);
+    const nearestPoint = findNearestPoint(flatContours, dragState.pos);
     const [x, y] = toScreenPos(nearestPoint);
     children.push(
       <circle
@@ -170,32 +170,41 @@ export function GraphContours({ contours, color }: GraphContoursProps) {
   );
 }
 
-function findNearestPoint(contours: Point[][], pos: Point): Point {
-  let nearestPoint: Point = contours[0][0];
+function findNearestPoint(flatContours: Float64Array, pos: Point): Point {
+  let nearestPoint: Point = [flatContours[0], flatContours[1]];
   let nearestDistance = Infinity;
 
-  for (const contour of contours) {
-    for (let i = 1; i < contour.length; i++) {
-      const p1 = contour[i - 1];
-      const p2 = contour[i];
-      const p = closestPointOnSegment(p1, p2, pos);
-      const distance = Math.hypot(p[0] - pos[0], p[1] - pos[1]);
-      if (distance < nearestDistance) {
-        nearestPoint = p;
-        nearestDistance = distance;
-      }
+  for (let i = 0; i < flatContours.length - 2; i += 2) {
+    const x = flatContours[i];
+    const y = flatContours[i + 1];
+    const x2 = flatContours[i + 2];
+    const y2 = flatContours[i + 3];
+    if (x === Infinity || x2 === Infinity) {
+      continue;
+    }
+    const p = closestPointOnSegment(x, y, x2, y2, pos);
+    const distance = Math.hypot(p[0] - pos[0], p[1] - pos[1]);
+    if (distance < nearestDistance) {
+      nearestPoint = p;
+      nearestDistance = distance;
     }
   }
 
   return nearestPoint;
 }
 
-function closestPointOnSegment(a: Point, b: Point, point: Point): Point {
+function closestPointOnSegment(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  point: Point
+): Point {
   const t =
-    ((point[0] - a[0]) * (b[0] - a[0]) + (point[1] - a[1]) * (b[1] - a[1])) /
-    ((b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2);
+    ((point[0] - x1) * (x2 - x1) + (point[1] - y1) * (y2 - y1)) /
+    ((x2 - x1) ** 2 + (y2 - y1) ** 2);
 
-  if (t < 0) return a;
-  if (t > 1) return b;
-  return [a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])];
+  if (t < 0) return [x1, y1];
+  if (t > 1) return [x2, y2];
+  return [x1 + t * (x2 - x1), y1 + t * (y2 - y1)];
 }

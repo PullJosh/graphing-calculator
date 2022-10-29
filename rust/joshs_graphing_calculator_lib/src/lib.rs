@@ -8,11 +8,16 @@ mod equation;
 mod expression;
 mod graphing;
 mod point;
+mod segment;
+mod triangle;
+mod vector;
 
 use equation::*;
 use expression::*;
 use graphing::*;
 use point::*;
+use segment::*;
+use vector::*;
 
 use serde_json::Value;
 
@@ -36,12 +41,12 @@ pub fn main() {
 
     println!("{:?}", Point1D(1.0) + Point1D(2.0));
 
-    fn f(x: f64, y: f64) -> f64 {
+    fn f(Point2D(x, y): Point2D) -> f64 {
         y - x * x
     }
 
-    fn df(x: f64, y: f64) -> (f64, f64) {
-        (-2.0 * x, 1.0)
+    fn df(Point2D(x, _y): Point2D) -> Vec2D {
+        Vec2D(-2.0 * x, 1.0)
     }
     let df = get_cheating_gradient(&df);
 
@@ -60,7 +65,7 @@ pub fn graph_equation(
     y: i64,
     depth: i64,
     search_depth: i64,
-) -> Vec<Contour> {
+) -> Vec<Contour2D> {
     console_error_panic_hook::set_once();
 
     let value: Value = serde_json::from_str(&math_json).unwrap();
@@ -78,19 +83,33 @@ pub fn graph_equation(
 }
 
 #[wasm_bindgen]
-pub fn graph_equation_to_contours_json(
+pub fn graph_equation_to_float_array(
     math_json: String,
     scale: i64,
     x: i64,
     y: i64,
     depth: i64,
     search_depth: i64,
-) -> String {
+) -> Vec<f64> {
     console_error_panic_hook::set_once();
 
     let graphed_equation = graph_equation(math_json, scale, x, y, depth, search_depth);
-    let contours_json = serde_json::to_string(&graphed_equation).unwrap();
-    return contours_json;
+
+    let mut total_length = graphed_equation
+        .iter()
+        .fold(0, |acc, contour| acc + contour.len());
+    total_length += graphed_equation.len() * 2;
+
+    let mut float_array = Vec::with_capacity(total_length);
+    for contour in graphed_equation {
+        for point in contour {
+            float_array.push(point.0);
+            float_array.push(point.1);
+        }
+        float_array.push(std::f64::INFINITY);
+        float_array.push(std::f64::INFINITY);
+    }
+    float_array
 }
 
 pub fn mathjson_value_to_equation(value: &Value) -> Option<Equation> {

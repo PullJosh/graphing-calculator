@@ -1,31 +1,41 @@
-import { graph_equation_to_contours_json as graphEquationToContoursJSON } from "joshs_graphing_calculator_lib";
+import { graph_equation_to_float_array as graphEquationToFloatArray } from "joshs_graphing_calculator_lib";
 
 import { expose } from "comlink";
-import type { Contour } from "../lib";
 
 const api = {
-  // graphEquationToContoursJSON: graph_equation_to_contours_json,
-  graphAllRegionsToContours: async (
+  graphAllRegionsToFlatContours: async (
     equation: string,
     regions: number[][],
     depth: bigint,
     searchDepth: bigint
   ) => {
-    console.log("search depth:", searchDepth);
-    const resultsJSON = await Promise.all(
-      regions.map((region) =>
-        graphEquationToContoursJSON(
-          equation,
-          BigInt(region[0]),
-          BigInt(region[1]),
-          BigInt(region[2]),
-          depth,
-          searchDepth
-        )
+    const results = await Promise.all(
+      regions.map(
+        (region) =>
+          graphEquationToFloatArray(
+            equation,
+            BigInt(region[0]),
+            BigInt(region[1]),
+            BigInt(region[2]),
+            depth,
+            searchDepth
+          ) as Float64Array
       )
     );
-    const result: Contour[] = resultsJSON.flatMap((json) => JSON.parse(json));
-    return result.map((contour) => contour.points).slice(0, 20);
+
+    // Merge all arrays into one
+    let finalResults: Float64Array = new Float64Array(
+      results.reduce((a, b) => a + b.length, 0) + results.length * 2
+    );
+    let offset = 0;
+    for (const result of results) {
+      finalResults.set(result, offset);
+      offset += result.length;
+      finalResults[offset] = Infinity;
+      finalResults[offset + 1] = Infinity;
+      offset += 2;
+    }
+    return finalResults;
   },
 };
 
