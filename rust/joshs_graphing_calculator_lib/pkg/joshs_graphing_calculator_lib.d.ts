@@ -27,18 +27,3 @@ export class GraphBox {
 */
   y_min: number;
 }
-/**
-*/
-export class GraphRegion {
-  free(): void;
-/**
-* @param {bigint} scale
-* @param {bigint} x
-* @param {bigint} y
-*/
-  constructor(scale: bigint, x: bigint, y: bigint);
-/**
-* @returns {GraphBox}
-*/
-  to_graph_box(): GraphBox;
-}

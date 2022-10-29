@@ -73,12 +73,10 @@ function useContoursForEquation(
         setContours([]);
       } finally {
         if (queued.current) {
-          await performWork(
-            queued.current.equation,
-            queued.current.desiredWindow,
-            queued.current.depth,
-            queued.current.searchDepth
-          );
+          const { equation, desiredWindow, depth, searchDepth } =
+            queued.current;
+          queued.current = null;
+          await performWork(equation, desiredWindow, depth, searchDepth);
         }
       }
     }

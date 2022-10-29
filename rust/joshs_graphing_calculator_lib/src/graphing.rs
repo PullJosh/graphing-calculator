@@ -1,9 +1,20 @@
+use wasm_bindgen::prelude::*;
+
 use crate::equation::*;
 use crate::expression::*;
 use na::{OMatrix, U1, U2, U3};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use wasm_bindgen::prelude::*;
+
+use crate::point::*;
+
+pub struct Segment1D(Point1D, Point1D);
+pub struct Segment2D(Point2D, Point2D);
+// pub struct Segment3D(Point3D, Point3D);
+
+// pub struct Triangle1D(Point1D, Point1D, Point1D);
+pub struct Triangle2D(Point2D, Point2D, Point2D);
+pub struct Triangle3D(Point3D, Point3D, Point3D);
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Contour {
@@ -72,60 +83,6 @@ pub struct QuadTreeLeafNode {
     vertex: (f64, f64),
 }
 
-#[derive(Serialize, Deserialize, Clone)]
-pub struct GraphedEquation {
-    pub graph_box: GraphBox,
-    pub quad_tree: QuadTreeNode,
-    pub contours: Vec<Contour>,
-}
-
-impl QuadTreeNode {
-    // Right now `deepen` returns an entire new tree (immutable), which is wasteful.
-    // We should be mutating the existing tree instead.
-    fn deepen(&self) -> QuadTreeNode {
-        match self {
-            QuadTreeNode::Root(root) => QuadTreeNode::Root(Box::new(QuadTreeRootNode {
-                children: [
-                    root.children[0].deepen(),
-                    root.children[1].deepen(),
-                    root.children[2].deepen(),
-                    root.children[3].deepen(),
-                ],
-            })),
-            QuadTreeNode::Leaf(leaf) => {
-                let children = [
-                    QuadTreeNode::Leaf(QuadTreeLeafNode {
-                        edge_points: Vec::new(),
-                        vertex: leaf.vertex,
-                    }),
-                    QuadTreeNode::Leaf(QuadTreeLeafNode {
-                        edge_points: Vec::new(),
-                        vertex: leaf.vertex,
-                    }),
-                    QuadTreeNode::Leaf(QuadTreeLeafNode {
-                        edge_points: Vec::new(),
-                        vertex: leaf.vertex,
-                    }),
-                    QuadTreeNode::Leaf(QuadTreeLeafNode {
-                        edge_points: Vec::new(),
-                        vertex: leaf.vertex,
-                    }),
-                ];
-
-                return QuadTreeNode::Root(Box::new(QuadTreeRootNode { children }));
-            }
-            _ => self.clone(),
-        }
-    }
-}
-
-impl GraphedEquation {
-    pub fn deepen(&mut self) {
-        self.quad_tree = self.quad_tree.deepen();
-        self.contours = get_combined_contours(&self.quad_tree);
-    }
-}
-
 pub fn graph_equation_2d(
     var1: &str,
     var2: &str,
@@ -133,7 +90,32 @@ pub fn graph_equation_2d(
     equation: &Equation,
     depth: i64,
     search_depth: i64,
-) -> GraphedEquation {
+) -> Vec<Contour> {
+    if let Some(var) = equation.left.as_any().downcast_ref::<Variable>() {
+        if var.name == var1 {
+            if equation.right.count_var_instances(var1) == 0 {
+                return graph_function_2d(var2, window, equation.right.clone(), true);
+            }
+        }
+        if var.name == var2 {
+            if equation.right.count_var_instances(var2) == 0 {
+                return graph_function_2d(var1, window, equation.right.clone(), false);
+            }
+        }
+    }
+    if let Some(var) = equation.right.as_any().downcast_ref::<Variable>() {
+        if var.name == var1 {
+            if equation.left.count_var_instances(var1) == 0 {
+                return graph_function_2d(var2, window, equation.left.clone(), true);
+            }
+        }
+        if var.name == var2 {
+            if equation.left.count_var_instances(var2) == 0 {
+                return graph_function_2d(var1, window, equation.left.clone(), false);
+            }
+        }
+    }
+
     let expression = Plus::new(vec![
         equation.left.clone(),
         Box::new(Minus::new(equation.right.clone())),
@@ -158,13 +140,41 @@ pub fn graph_equation_2d(
 
     let tree = build_tree(depth, search_depth, window, &f, &df, var1, var2);
 
-    let combined_contours = get_combined_contours(&tree);
+    get_combined_contours(&tree)
+}
 
-    GraphedEquation {
-        graph_box: window.clone(),
-        quad_tree: tree,
-        contours: combined_contours,
+pub fn graph_function_2d(
+    var: &str,
+    window: &GraphBox,
+    expression: Box<dyn Expression>,
+    flipped: bool,
+) -> Vec<Contour> {
+    let mut contour = Contour { points: vec![] };
+
+    let mut variables = HashMap::new();
+    use rand::Rng;
+    let mut rng: rand::rngs::StdRng = rand::SeedableRng::seed_from_u64(0);
+    for i in 0..501 {
+        // In high-frequency graphs, taking regular samples can cause patterns to
+        // appear that are not actually there. (For example, when graphing y = sin(x^2)
+        // and zooming out.) To avoid this, we randomize the sample point slightly.
+        let randomized_i = i as f64
+            + if i == 0 || i == 500 {
+                0.0
+            } else {
+                rng.gen::<f64>() - 0.5
+            };
+        let x = window.x_min + (window.x_max - window.x_min) * randomized_i / 500.0;
+        variables.insert(var, x);
+        let y = expression.evaluate(&variables);
+        if flipped {
+            contour.points.push((y, x));
+        } else {
+            contour.points.push((x, y));
+        }
     }
+
+    vec![contour]
 }
 
 fn build_tree(
@@ -316,111 +326,6 @@ pub fn get_cheating_gradient<'a>(
     })
 }
 
-// fn get_leaf_connections(tree_node: &QuadTreeNode) -> Vec<(QuadTreeLeafNode, QuadTreeLeafNode)> {
-//     fn get_vertical_connections(
-//         top_node: &QuadTreeNode,
-//         bottom_node: &QuadTreeNode,
-//     ) -> Vec<(QuadTreeLeafNode, QuadTreeLeafNode)> {
-//         match (top_node, bottom_node) {
-//             (QuadTreeNode::Root(top), QuadTreeNode::Root(bottom)) => {
-//                 let mut connections = vec![];
-//                 connections.append(&mut get_vertical_connections(
-//                     &top.children[0],
-//                     &bottom.children[2],
-//                 ));
-//                 connections.append(&mut get_vertical_connections(
-//                     &top.children[1],
-//                     &bottom.children[3],
-//                 ));
-//                 connections
-//             }
-//             (QuadTreeNode::Root(top), bottom) => {
-//                 let mut connections = vec![];
-//                 connections.append(&mut get_vertical_connections(&top.children[0], bottom));
-//                 connections.append(&mut get_vertical_connections(&top.children[1], bottom));
-//                 connections
-//             }
-//             (top, QuadTreeNode::Root(bottom)) => {
-//                 let mut connections = vec![];
-//                 connections.append(&mut get_vertical_connections(top, &bottom.children[2]));
-//                 connections.append(&mut get_vertical_connections(top, &bottom.children[3]));
-//                 connections
-//             }
-//             (QuadTreeNode::Leaf(top), QuadTreeNode::Leaf(bottom)) => {
-//                 vec![(top.clone(), bottom.clone())]
-//             }
-//             _ => vec![],
-//         }
-//     }
-
-//     fn get_horizontal_connections(
-//         left_node: &QuadTreeNode,
-//         right_node: &QuadTreeNode,
-//     ) -> Vec<(QuadTreeLeafNode, QuadTreeLeafNode)> {
-//         match (left_node, right_node) {
-//             (QuadTreeNode::Root(left), QuadTreeNode::Root(right)) => {
-//                 let mut connections = vec![];
-//                 connections.append(&mut get_horizontal_connections(
-//                     &left.children[1],
-//                     &right.children[0],
-//                 ));
-//                 connections.append(&mut get_horizontal_connections(
-//                     &left.children[3],
-//                     &right.children[2],
-//                 ));
-//                 connections
-//             }
-//             (QuadTreeNode::Root(left), right) => {
-//                 let mut connections = vec![];
-//                 connections.append(&mut get_horizontal_connections(&left.children[1], right));
-//                 connections.append(&mut get_horizontal_connections(&left.children[3], right));
-//                 connections
-//             }
-//             (left, QuadTreeNode::Root(right)) => {
-//                 let mut connections = vec![];
-//                 connections.append(&mut get_horizontal_connections(left, &right.children[0]));
-//                 connections.append(&mut get_horizontal_connections(left, &right.children[2]));
-//                 connections
-//             }
-//             (QuadTreeNode::Leaf(left), QuadTreeNode::Leaf(right)) => {
-//                 vec![(left.clone(), right.clone())]
-//             }
-//             _ => vec![],
-//         }
-//     }
-
-//     fn get_face_connections(tree_node: &QuadTreeNode) -> Vec<(QuadTreeLeafNode, QuadTreeLeafNode)> {
-//         match tree_node {
-//             QuadTreeNode::Root(root) => {
-//                 let mut connections = vec![];
-//                 for child in &root.children {
-//                     connections.append(&mut get_face_connections(child));
-//                 }
-//                 connections.append(&mut get_vertical_connections(
-//                     &root.children[2],
-//                     &root.children[0],
-//                 ));
-//                 connections.append(&mut get_vertical_connections(
-//                     &root.children[3],
-//                     &root.children[1],
-//                 ));
-//                 connections.append(&mut get_horizontal_connections(
-//                     &root.children[0],
-//                     &root.children[1],
-//                 ));
-//                 connections.append(&mut get_horizontal_connections(
-//                     &root.children[2],
-//                     &root.children[3],
-//                 ));
-//                 connections
-//             }
-//             _ => vec![],
-//         }
-//     }
-
-//     get_face_connections(tree_node)
-// }
-
 fn get_combined_contours(tree_node: &QuadTreeNode) -> Vec<Contour> {
     fn get_contours(tree_node: &QuadTreeNode) -> Vec<Contour> {
         match tree_node {
@@ -446,23 +351,6 @@ fn get_combined_contours(tree_node: &QuadTreeNode) -> Vec<Contour> {
 
     simplify_contours(&get_contours(tree_node))
 }
-
-// fn get_dual_contours(leaf_connections: &Vec<(QuadTreeLeafNode, QuadTreeLeafNode)>) -> Vec<Contour> {
-//     let mut contours = vec![];
-//     for (leaf1, leaf2) in leaf_connections {
-//         let mut contour = Contour::new();
-//         contour.add_point(leaf1.vertex);
-//         contour.add_point(leaf2.vertex);
-//         contours.push(contour);
-//     }
-//     // simplify_contours(&contours)
-//     contours
-// }
-
-// fn simplify_contours(contours: &Vec<Contour>) -> Vec<Contour> {
-//     let mut simplified_contours = vec![];
-//     for contour in contours {}
-// }
 
 fn simplify_contours(contours: &Vec<Contour>) -> Vec<Contour> {
     let mut simplified_contours = contours.clone();

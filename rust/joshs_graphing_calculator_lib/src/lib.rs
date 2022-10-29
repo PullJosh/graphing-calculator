@@ -1,18 +1,20 @@
 use wasm_bindgen::prelude::*;
+extern crate console_error_panic_hook;
+
 extern crate nalgebra as na;
 
 mod ast;
 mod equation;
 mod expression;
 mod graphing;
+mod point;
 
 use equation::*;
 use expression::*;
 use graphing::*;
+use point::*;
 
 use serde_json::Value;
-
-use crate::graphing::GraphedEquation;
 
 pub use graphing::graph_equation_2d;
 pub use graphing::GraphBox;
@@ -23,30 +25,6 @@ extern "C" {
     fn log(s: String);
 }
 
-#[wasm_bindgen]
-#[derive(Debug, Clone)]
-pub struct GraphRegion {
-    scale: i64,
-    x: i64,
-    y: i64,
-}
-
-#[wasm_bindgen]
-impl GraphRegion {
-    #[wasm_bindgen(constructor)]
-    pub fn new(scale: i64, x: i64, y: i64) -> GraphRegion {
-        GraphRegion { scale, x, y }
-    }
-    pub fn to_graph_box(&self) -> GraphBox {
-        GraphBox::new(
-            2.0_f64.powf(self.scale as f64) * self.x as f64,
-            2.0_f64.powf(self.scale as f64) * (self.x + 1) as f64,
-            2.0_f64.powf(self.scale as f64) * self.y as f64,
-            2.0_f64.powf(self.scale as f64) * (self.y + 1) as f64,
-        )
-    }
-}
-
 // Main function for testing purposes (so we can test stuff
 // without calling it from JavaScript)
 pub fn main() {
@@ -55,6 +33,8 @@ pub fn main() {
     let now = Instant::now();
 
     let area = GraphBox::new(1.0, 2.0, 1.0, 2.0);
+
+    println!("{:?}", Point1D(1.0) + Point1D(2.0));
 
     fn f(x: f64, y: f64) -> f64 {
         y - x * x
@@ -80,22 +60,21 @@ pub fn graph_equation(
     y: i64,
     depth: i64,
     search_depth: i64,
-) -> GraphedEquation {
+) -> Vec<Contour> {
+    console_error_panic_hook::set_once();
+
     let value: Value = serde_json::from_str(&math_json).unwrap();
 
     let equation = mathjson_value_to_equation(&value).unwrap();
-    // log(format!("Equation: {:?}", &equation));
 
-    let window = GraphRegion::new(scale, x, y).to_graph_box();
+    let window = GraphBox::new(
+        2.0_f64.powf(scale as f64) * x as f64,
+        2.0_f64.powf(scale as f64) * (x + 1) as f64,
+        2.0_f64.powf(scale as f64) * y as f64,
+        2.0_f64.powf(scale as f64) * (y + 1) as f64,
+    );
 
-    let graphed_equation = graph_equation_2d("x", "y", &window, &equation, depth, search_depth);
-    // log(format!(
-    //     "Contours length to make sure Rust isn't getting smart: {:?}",
-    //     graphed_equation.contours.len()
-    // ));
-
-    return graphed_equation;
-    // "{ \"contours\": [{ \"points\": [[0, 0], [1, 1]] }] }".to_string()
+    graph_equation_2d("x", "y", &window, &equation, depth, search_depth)
 }
 
 #[wasm_bindgen]
@@ -107,12 +86,16 @@ pub fn graph_equation_to_contours_json(
     depth: i64,
     search_depth: i64,
 ) -> String {
+    console_error_panic_hook::set_once();
+
     let graphed_equation = graph_equation(math_json, scale, x, y, depth, search_depth);
-    let contours_json = serde_json::to_string(&graphed_equation.contours).unwrap();
+    let contours_json = serde_json::to_string(&graphed_equation).unwrap();
     return contours_json;
 }
 
 pub fn mathjson_value_to_equation(value: &Value) -> Option<Equation> {
+    console_error_panic_hook::set_once();
+
     if let Value::Array(a) = value {
         if a.len() != 3 {
             return None;
@@ -147,6 +130,8 @@ pub fn mathjson_value_to_equation(value: &Value) -> Option<Equation> {
 }
 
 fn mathjson_value_to_expression(value: &Value) -> Option<Box<dyn Expression>> {
+    console_error_panic_hook::set_once();
+
     match value {
         Value::Number(n) => Some(Box::new(Constant::new(n.as_f64().unwrap()))),
         Value::String(s) => match s.as_str() {
@@ -184,6 +169,10 @@ fn mathjson_value_to_expression(value: &Value) -> Option<Box<dyn Expression>> {
                 "Tan" => Some(Box::new(Tan::new(operands[0].clone()))),
                 "Abs" => Some(Box::new(Abs::new(operands[0].clone()))),
                 "Delimiter" => Some(operands[0].clone()),
+                "Rational" => Some(Box::new(Times::new(vec![
+                    operands[0].clone(),
+                    Box::new(Inverse::new(operands[1].clone())),
+                ]))),
                 _ => None,
             }
         }

@@ -11,6 +11,7 @@ const api = {
     depth: bigint,
     searchDepth: bigint
   ) => {
+    console.log("search depth:", searchDepth);
     const resultsJSON = await Promise.all(
       regions.map((region) =>
         graphEquationToContoursJSON(

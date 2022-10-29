@@ -10,6 +10,13 @@ import {
 
 import type { Box } from "../lib";
 
+interface GraphWindow {
+  centerX: number;
+  centerY: number;
+  width: number;
+  height: number;
+}
+
 interface GraphContext {
   width: number;
   height: number;
@@ -25,11 +32,11 @@ interface GraphProps {
 }
 
 export function Graph({ width = 400, height = 400, children }: GraphProps) {
-  const [graphWindow, setGraphWindow] = useState<Box>({
-    minX: -4,
-    maxX: 4,
-    minY: -4,
-    maxY: 4,
+  const [graphWindow, setGraphWindow] = useState<GraphWindow>({
+    centerX: 0,
+    centerY: 0,
+    width: 20,
+    height: 20,
   });
 
   // Update graph window when width or height changes
@@ -39,20 +46,16 @@ export function Graph({ width = 400, height = 400, children }: GraphProps) {
       if (isNaN(aspectRatio)) aspectRatio = 1;
 
       // When updating graph window, preserve the overall area being displayed
-      const area =
-        (graphWindow.maxX - graphWindow.minX) *
-        (graphWindow.maxY - graphWindow.minY);
+      const area = graphWindow.width * graphWindow.height;
 
       const newGraphWidth = Math.sqrt(area * aspectRatio);
       const newGraphHeight = Math.sqrt(area / aspectRatio);
-      const centerX = (graphWindow.maxX + graphWindow.minX) / 2;
-      const centerY = (graphWindow.maxY + graphWindow.minY) / 2;
 
       return {
-        minX: centerX - newGraphWidth / 2,
-        maxX: centerX + newGraphWidth / 2,
-        minY: centerY - newGraphHeight / 2,
-        maxY: centerY + newGraphHeight / 2,
+        centerX: graphWindow.centerX,
+        centerY: graphWindow.centerY,
+        width: newGraphWidth,
+        height: newGraphHeight,
       };
     });
   }, [width, height]);
@@ -62,7 +65,7 @@ export function Graph({ width = 400, height = 400, children }: GraphProps) {
   interface DragState {
     startX: number;
     startY: number;
-    startValue: Box;
+    startValue: GraphWindow;
   }
 
   const [dragState, setDragState] = useState<DragState | null>(null);
@@ -83,14 +86,11 @@ export function Graph({ width = 400, height = 400, children }: GraphProps) {
       const dx = event.clientX - dragState.startX;
       const dy = event.clientY - dragState.startY;
 
-      const xScale = (oldWindow.maxX - oldWindow.minX) / width;
-      const yScale = (oldWindow.maxY - oldWindow.minY) / height;
-
       setGraphWindow({
-        minX: oldWindow.minX - dx * xScale,
-        maxX: oldWindow.maxX - dx * xScale,
-        minY: oldWindow.minY + dy * yScale,
-        maxY: oldWindow.maxY + dy * yScale,
+        centerX: oldWindow.centerX - oldWindow.width * (dx / width),
+        centerY: oldWindow.centerY + oldWindow.height * (dy / height),
+        width: oldWindow.width,
+        height: oldWindow.height,
       });
     },
     [dragState, width, height]
@@ -104,14 +104,11 @@ export function Graph({ width = 400, height = 400, children }: GraphProps) {
       const dx = event.clientX - dragState.startX;
       const dy = event.clientY - dragState.startY;
 
-      const xScale = (oldWindow.maxX - oldWindow.minX) / width;
-      const yScale = (oldWindow.maxY - oldWindow.minY) / height;
-
       setGraphWindow({
-        minX: oldWindow.minX - dx * xScale,
-        maxX: oldWindow.maxX - dx * xScale,
-        minY: oldWindow.minY + dy * yScale,
-        maxY: oldWindow.maxY + dy * yScale,
+        centerX: oldWindow.centerX - oldWindow.width * (dx / width),
+        centerY: oldWindow.centerY + oldWindow.height * (dy / height),
+        width: oldWindow.width,
+        height: oldWindow.height,
       });
 
       setDragState(null);
@@ -123,23 +120,20 @@ export function Graph({ width = 400, height = 400, children }: GraphProps) {
     event.preventDefault();
     let zoomAmount = -event.deltaY / 100;
     setGraphWindow((oldWindow) => {
-      const newGraphWidth =
-        (oldWindow.maxX - oldWindow.minX) * (1 - zoomAmount);
-      const newGraphHeight =
-        (oldWindow.maxY - oldWindow.minY) * (1 - zoomAmount);
+      const newGraphWidth = oldWindow.width * (1 - zoomAmount);
+      const newGraphHeight = oldWindow.height * (1 - zoomAmount);
 
       const rect = ref.current!.getBoundingClientRect();
       const mx = (event.clientX - rect.left) / rect.width;
       const my = (event.clientY - rect.top) / rect.height;
-      const centerX = oldWindow.minX + mx * (oldWindow.maxX - oldWindow.minX);
-      const centerY =
-        oldWindow.minY + (1 - my) * (oldWindow.maxY - oldWindow.minY);
+      const focalX = oldWindow.centerX + oldWindow.width * (mx - 0.5);
+      const focalY = oldWindow.centerY + oldWindow.height * (0.5 - my);
 
       return {
-        minX: centerX - newGraphWidth * mx,
-        maxX: centerX + newGraphWidth * (1 - mx),
-        minY: centerY - newGraphHeight * (1 - my),
-        maxY: centerY + newGraphHeight * my,
+        centerX: focalX + newGraphWidth * (0.5 - mx),
+        centerY: focalY + newGraphHeight * (my - 0.5),
+        width: newGraphWidth,
+        height: newGraphHeight,
       };
     });
   }, []);
@@ -170,7 +164,18 @@ export function Graph({ width = 400, height = 400, children }: GraphProps) {
       style={{ width, height }}
       onMouseDown={onMouseDown}
     >
-      <GraphContext.Provider value={{ width, height, graphWindow }}>
+      <GraphContext.Provider
+        value={{
+          width,
+          height,
+          graphWindow: {
+            minX: graphWindow.centerX - graphWindow.width / 2,
+            maxX: graphWindow.centerX + graphWindow.width / 2,
+            minY: graphWindow.centerY - graphWindow.height / 2,
+            maxY: graphWindow.centerY + graphWindow.height / 2,
+          },
+        }}
+      >
         {children}
       </GraphContext.Provider>
     </div>

@@ -11,6 +11,7 @@ pub trait Expression: ASTNode + std::fmt::Display + std::fmt::Debug {
     fn get_real_domain(&self) -> Box<dyn Set>;
     fn basic_simplify(&self) -> Box<dyn Expression>;
     fn is_constant(&self) -> bool;
+    fn count_var_instances(&self, variable: &str) -> u64;
 
     fn clone_dyn(&self) -> Box<dyn Expression>;
     fn as_any(&self) -> &dyn Any;
@@ -46,6 +47,9 @@ impl Expression for Constant {
     }
     fn is_constant(&self) -> bool {
         true
+    }
+    fn count_var_instances(&self, _variable: &str) -> u64 {
+        0
     }
     fn clone_dyn(&self) -> Box<dyn Expression> {
         Box::new(self.clone())
@@ -94,6 +98,13 @@ impl Expression for Variable {
     }
     fn is_constant(&self) -> bool {
         false
+    }
+    fn count_var_instances(&self, variable: &str) -> u64 {
+        if self.name == variable {
+            1
+        } else {
+            0
+        }
     }
     fn clone_dyn(&self) -> Box<dyn Expression> {
         Box::new(self.clone())
@@ -180,6 +191,12 @@ impl Expression for Plus {
     fn is_constant(&self) -> bool {
         self.terms.iter().all(|term| term.is_constant())
     }
+    fn count_var_instances(&self, variable: &str) -> u64 {
+        self.terms
+            .iter()
+            .map(|term| term.count_var_instances(variable))
+            .sum()
+    }
     fn clone_dyn(&self) -> Box<dyn Expression> {
         Box::new(self.clone())
     }
@@ -248,6 +265,9 @@ impl Expression for Minus {
     }
     fn is_constant(&self) -> bool {
         self.value.is_constant()
+    }
+    fn count_var_instances(&self, variable: &str) -> u64 {
+        self.value.count_var_instances(variable)
     }
     fn clone_dyn(&self) -> Box<dyn Expression> {
         Box::new(self.clone())
@@ -354,6 +374,12 @@ impl Expression for Times {
     fn is_constant(&self) -> bool {
         self.factors.iter().all(|factor| factor.is_constant())
     }
+    fn count_var_instances(&self, variable: &str) -> u64 {
+        self.factors
+            .iter()
+            .map(|factor| factor.count_var_instances(variable))
+            .sum()
+    }
     fn clone_dyn(&self) -> Box<dyn Expression> {
         Box::new(self.clone())
     }
@@ -433,6 +459,9 @@ impl Expression for Inverse {
     }
     fn is_constant(&self) -> bool {
         self.value.is_constant()
+    }
+    fn count_var_instances(&self, variable: &str) -> u64 {
+        self.value.count_var_instances(variable)
     }
     fn clone_dyn(&self) -> Box<dyn Expression> {
         Box::new(self.clone())
@@ -571,6 +600,9 @@ impl Expression for Power {
     fn is_constant(&self) -> bool {
         self.base.is_constant() && self.exponent.is_constant()
     }
+    fn count_var_instances(&self, variable: &str) -> u64 {
+        self.base.count_var_instances(variable) + self.exponent.count_var_instances(variable)
+    }
     fn clone_dyn(&self) -> Box<dyn Expression> {
         Box::new(self.clone())
     }
@@ -651,6 +683,9 @@ impl Expression for Log {
     fn is_constant(&self) -> bool {
         self.value.is_constant()
     }
+    fn count_var_instances(&self, variable: &str) -> u64 {
+        self.value.count_var_instances(variable)
+    }
     fn clone_dyn(&self) -> Box<dyn Expression> {
         Box::new(self.clone())
     }
@@ -705,6 +740,9 @@ impl Expression for Sin {
     fn is_constant(&self) -> bool {
         self.value.is_constant()
     }
+    fn count_var_instances(&self, variable: &str) -> u64 {
+        self.value.count_var_instances(variable)
+    }
     fn clone_dyn(&self) -> Box<dyn Expression> {
         Box::new(self.clone())
     }
@@ -758,6 +796,9 @@ impl Expression for Cos {
     }
     fn is_constant(&self) -> bool {
         self.value.is_constant()
+    }
+    fn count_var_instances(&self, variable: &str) -> u64 {
+        self.value.count_var_instances(variable)
     }
     fn clone_dyn(&self) -> Box<dyn Expression> {
         Box::new(self.clone())
@@ -816,6 +857,9 @@ impl Expression for Tan {
     fn is_constant(&self) -> bool {
         self.value.is_constant()
     }
+    fn count_var_instances(&self, variable: &str) -> u64 {
+        self.value.count_var_instances(variable)
+    }
     fn clone_dyn(&self) -> Box<dyn Expression> {
         Box::new(self.clone())
     }
@@ -870,6 +914,9 @@ impl Expression for Abs {
     }
     fn is_constant(&self) -> bool {
         self.value.is_constant()
+    }
+    fn count_var_instances(&self, variable: &str) -> u64 {
+        self.value.count_var_instances(variable)
     }
     fn clone_dyn(&self) -> Box<dyn Expression> {
         Box::new(self.clone())

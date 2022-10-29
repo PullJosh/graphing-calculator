@@ -1,5 +1,25 @@
 import * as wasm from './joshs_graphing_calculator_lib_bg.wasm';
 
+const heap = new Array(32).fill(undefined);
+
+heap.push(undefined, null, true, false);
+
+function getObject(idx) { return heap[idx]; }
+
+let heap_next = heap.length;
+
+function dropObject(idx) {
+    if (idx < 36) return;
+    heap[idx] = heap_next;
+    heap_next = idx;
+}
+
+function takeObject(idx) {
+    const ret = getObject(idx);
+    dropObject(idx);
+    return ret;
+}
+
 const lTextDecoder = typeof TextDecoder === 'undefined' ? (0, module.require)('util').TextDecoder : TextDecoder;
 
 let cachedTextDecoder = new lTextDecoder('utf-8', { ignoreBOM: true, fatal: true });
@@ -108,16 +128,17 @@ export function graph_equation_to_contours_json(math_json, scale, x, y, depth, s
     }
 }
 
+function addHeapObject(obj) {
+    if (heap_next === heap.length) heap.push(heap.length + 1);
+    const idx = heap_next;
+    heap_next = heap[idx];
+
+    heap[idx] = obj;
+    return idx;
+}
 /**
 */
 export class GraphBox {
-
-    static __wrap(ptr) {
-        const obj = Object.create(GraphBox.prototype);
-        obj.ptr = ptr;
-
-        return obj;
-    }
 
     __destroy_into_raw() {
         const ptr = this.ptr;
@@ -183,45 +204,31 @@ export class GraphBox {
         wasm.__wbg_set_graphbox_y_max(this.ptr, arg0);
     }
 }
-/**
-*/
-export class GraphRegion {
 
-    static __wrap(ptr) {
-        const obj = Object.create(GraphRegion.prototype);
-        obj.ptr = ptr;
+export function __wbg_new_abda76e883ba8a5f() {
+    const ret = new Error();
+    return addHeapObject(ret);
+};
 
-        return obj;
-    }
+export function __wbg_stack_658279fe44541cf6(arg0, arg1) {
+    const ret = getObject(arg1).stack;
+    const ptr0 = passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    getInt32Memory0()[arg0 / 4 + 1] = len0;
+    getInt32Memory0()[arg0 / 4 + 0] = ptr0;
+};
 
-    __destroy_into_raw() {
-        const ptr = this.ptr;
-        this.ptr = 0;
+export function __wbg_error_f851667af71bcfc6(arg0, arg1) {
+    try {
+        console.error(getStringFromWasm0(arg0, arg1));
+    } finally {
+        wasm.__wbindgen_free(arg0, arg1);
+    }
+};
 
-        return ptr;
-    }
-
-    free() {
-        const ptr = this.__destroy_into_raw();
-        wasm.__wbg_graphregion_free(ptr);
-    }
-    /**
-    * @param {bigint} scale
-    * @param {bigint} x
-    * @param {bigint} y
-    */
-    constructor(scale, x, y) {
-        const ret = wasm.graphregion_new(scale, x, y);
-        return GraphRegion.__wrap(ret);
-    }
-    /**
-    * @returns {GraphBox}
-    */
-    to_graph_box() {
-        const ret = wasm.graphregion_to_graph_box(this.ptr);
-        return GraphBox.__wrap(ret);
-    }
-}
+export function __wbindgen_object_drop_ref(arg0) {
+    takeObject(arg0);
+};
 
 export function __wbindgen_throw(arg0, arg1) {
     throw new Error(getStringFromWasm0(arg0, arg1));

@@ -40,5 +40,12 @@ export function MathLiveInput({
     }
   }, [latex]);
 
-  return <div ref={setDiv} />;
+  return (
+    <div
+      ref={setDiv}
+      onDoubleClick={() => {
+        console.log(mathFieldElement.current?.getValue("math-json"));
+      }}
+    />
+  );
 }
