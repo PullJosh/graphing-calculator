@@ -76,8 +76,6 @@ export default function Index() {
   const graphContainerRef = useRef(null);
   const [width, height] = useSize(graphContainerRef);
 
-  const [debug, setDebug] = useState(false);
-
   return (
     <div className="grid grid-cols-[300px,1fr] grid-rows-[auto,1fr] w-screen h-screen">
       <div className="flex justify-between items-center col-span-full bg-gray-800 px-4 py-3">
@@ -141,17 +139,6 @@ export default function Index() {
             Add expression
           </button>
         </div>
-        <div className="mt-auto p-4">
-          <label className="flex items-center space-x-1">
-            <input
-              className="w-4 h-4"
-              type="checkbox"
-              checked={debug}
-              onChange={(event) => setDebug(event.target.checked)}
-            />
-            <span>Debug mode</span>
-          </label>
-        </div>
       </div>
       <div
         ref={graphContainerRef}
@@ -210,39 +197,23 @@ function EquationInput({
           <span className="sr-only">Change color</span>
         </button>
       </div>
-      <div
-        className={classNames(
-          "block w-full flex-grow self-stretch px-3 py-2 focus:outline-none",
-          {
-            "selection:bg-red-600/20 selection:text-red-900": color === "red",
-            "selection:bg-blue-600/20 selection:text-blue-900":
-              color === "blue",
-          }
-        )}
-      >
+      <div className="block w-full flex-grow self-stretch focus-within:outline">
         <MathLiveInput
           latex={equation}
           onChange={(latex) => {
             setEquation(latex);
           }}
           options={{}}
+          className="px-3 py-2 outline-none"
+          style={
+            color === "red"
+              ? "--hue: 0; --selection-background-color-focused: rgb(220 38 38 / 0.2); --selection-color-focused: rgb(127 29 29 / 1);"
+              : color === "blue"
+              ? "--hue: 222; --selection-background-color-focused: rgb(37 99 235 / 0.2); --selection-color-focused: rgb(30 58 138 / 1);"
+              : undefined
+          }
         />
       </div>
-      {/* <input
-        className={classNames(
-          "block w-full flex-grow self-stretch px-3 py-2 focus:outline-none",
-          {
-            "selection:bg-red-600/20 selection:text-red-900": color === "red",
-            "selection:bg-blue-600/20 selection:text-blue-900":
-              color === "blue",
-          }
-        )}
-        type="text"
-        value={equation}
-        onChange={(event) => {
-          setEquation(event.target.value);
-        }}
-      /> */}
       <button
         onClick={() => deleteSelf()}
         className="absolute top-0 right-0 w-5 h-5 rounded-bl bg-gray-200 flex items-center justify-center"
@@ -269,37 +240,7 @@ function ExpressionInput({
   setColor,
   deleteSelf,
 }: ExpressionInputProps) {
-  const [input, setInput] = useState<HTMLInputElement | null>(null);
-
-  // Rainbow text selection effect
-  useEffect(() => {
-    if (!input) return;
-
-    const stylesheet = document.createElement("style");
-    document.body.appendChild(stylesheet);
-
-    let done = false;
-
-    function updateSelectionColor() {
-      if (done) return;
-      requestAnimationFrame(updateSelectionColor);
-
-      const t = (Date.now() / 4000) % 1;
-      stylesheet.innerHTML = `
-        .rainbowSelectionInput::selection {
-          background-color: hsla(${t * 360}, 100%, 50%, 0.2);
-          color: hsl(${t * 360}, 100%, 25%);
-        }
-      `;
-    }
-
-    updateSelectionColor();
-
-    return () => {
-      document.body.removeChild(stylesheet);
-      done = true;
-    };
-  }, [input]);
+  const rainbowHue = useRainbowHue();
 
   const colorOptions = ["red", "blue", "rainbow"] as const;
 
@@ -340,21 +281,25 @@ function ExpressionInput({
           <span className="sr-only">Change color</span>
         </button>
       </div>
-      <input
-        ref={setInput}
-        className={classNames(
-          "block w-full flex-grow self-stretch px-3 py-2 focus:outline-none",
-          {
-            rainbowSelectionInput: color === "rainbow",
-            "selection:bg-red-600/20 selection:text-red-900": color === "red",
-            "selection:bg-blue-600/20 selection:text-blue-900":
-              color === "blue",
+      <div className="block w-full flex-grow self-stretch focus-within:outline">
+        <MathLiveInput
+          latex={expression}
+          onChange={(latex) => {
+            setExpression(latex);
+          }}
+          options={{}}
+          className="px-3 py-2 outline-none"
+          style={
+            color === "rainbow"
+              ? `--hue: ${rainbowHue}; --selection-background-color-focused: hsla(${rainbowHue}, 100%, 50%, 0.2); --selection-color-focused: hsl(${rainbowHue}, 100%, 25%);`
+              : color === "red"
+              ? "--hue: 0; --selection-background-color-focused: rgb(220 38 38 / 0.2); --selection-color-focused: rgb(127 29 29 / 1);"
+              : color === "blue"
+              ? "--hue: 222; --selection-background-color-focused: rgb(37 99 235 / 0.2); --selection-color-focused: rgb(30 58 138 / 1);"
+              : undefined
           }
-        )}
-        type="text"
-        value={expression}
-        onChange={(event) => setExpression(event.target.value)}
-      />
+        />
+      </div>
       <button
         onClick={() => deleteSelf()}
         className="absolute top-0 right-0 w-5 h-5 rounded-bl bg-gray-200 flex items-center justify-center"
@@ -364,4 +309,27 @@ function ExpressionInput({
       </button>
     </div>
   );
+}
+
+function useRainbowHue() {
+  const [rainbowHue, setRainbowHue] = useState(0);
+  useEffect(() => {
+    let done = false;
+
+    function updateSelectionColor() {
+      if (done) return;
+      requestAnimationFrame(updateSelectionColor);
+
+      const t = (Date.now() / 4000) % 1;
+      setRainbowHue(t * 360);
+    }
+
+    updateSelectionColor();
+
+    return () => {
+      done = true;
+    };
+  }, []);
+
+  return rainbowHue;
 }

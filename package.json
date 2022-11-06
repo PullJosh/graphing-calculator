@@ -18,9 +18,7 @@
     "@react-hook/size": "^2.1.2",
     "comlink": "^4.3.1",
     "joshs_graphing_calculator_lib": "file:rust/joshs_graphing_calculator_lib/pkg",
-    "mathjs": "^11.1.0",
     "mathlive": "^0.83.0",
-    "memoizerific": "^1.11.3",
     "next": "^12.2.5",
     "react": "^17.0.2",
     "react-dom": "^17.0.2"
