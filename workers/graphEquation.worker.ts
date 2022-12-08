@@ -5,10 +5,25 @@ import { expose } from "comlink";
 const api = {
   graphAllRegionsToFlatContours: async (
     equation: string,
-    regions: number[][],
+    minX: number,
+    maxX: number,
+    minY: number,
+    maxY: number,
+    // regions: number[][],
     depth: bigint,
     searchDepth: bigint
   ) => {
+    return (await graphEquationToFloatArray(
+      equation,
+      minX,
+      maxX,
+      minY,
+      maxY,
+      depth,
+      searchDepth
+    )) as Float64Array;
+
+    /*
     const results = await Promise.all(
       regions.map(
         (region) =>
@@ -36,6 +51,7 @@ const api = {
       offset += 2;
     }
     return finalResults;
+    */
   },
 };
 

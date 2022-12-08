@@ -3,7 +3,7 @@ use crate::expression::*;
 use std::any::Any;
 use std::collections::HashMap;
 
-pub trait Set: ASTNode {
+pub trait Set: ASTNode + std::fmt::Debug {
     fn contains(&self, variables: &HashMap<&str, f64>) -> bool;
     fn basic_simplify(&self) -> Box<dyn Set>;
 
@@ -17,6 +17,7 @@ impl Clone for Box<dyn Set> {
     }
 }
 
+#[derive(Debug)]
 pub struct EmptySet;
 impl EmptySet {
     pub fn new() -> Self {
@@ -39,6 +40,7 @@ impl Set for EmptySet {
 }
 impl ASTNode for EmptySet {}
 
+#[derive(Debug)]
 pub struct FullSet;
 impl FullSet {
     pub fn new() -> Self {
@@ -61,7 +63,7 @@ impl Set for FullSet {
 }
 impl ASTNode for FullSet {}
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Union {
     sets: Vec<Box<dyn Set>>,
 }
@@ -110,7 +112,7 @@ impl Set for Union {
 }
 impl ASTNode for Union {}
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Intersection {
     sets: Vec<Box<dyn Set>>,
 }
@@ -236,3 +238,40 @@ impl Set for Equation {
     }
 }
 impl ASTNode for Equation {}
+
+#[derive(Clone, Debug)]
+pub struct Interval {
+    pub variable: String,
+    pub lower: f64,
+    pub upper: f64,
+    pub lower_inclusive: bool,
+    pub upper_inclusive: bool,
+}
+impl Set for Interval {
+    fn contains(&self, variables: &HashMap<&str, f64>) -> bool {
+        let value = variables.get(&self.variable.as_str());
+        let value = match value {
+            Some(v) => *v,
+            None => return false,
+        };
+        if self.lower_inclusive && self.upper_inclusive {
+            self.lower <= value && value <= self.upper
+        } else if self.lower_inclusive {
+            self.lower <= value && value < self.upper
+        } else if self.upper_inclusive {
+            self.lower < value && value <= self.upper
+        } else {
+            self.lower < value && value < self.upper
+        }
+    }
+    fn basic_simplify(&self) -> Box<dyn Set> {
+        self.clone_dyn()
+    }
+    fn clone_dyn(&self) -> Box<dyn Set> {
+        Box::new(self.clone())
+    }
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+impl ASTNode for Interval {}

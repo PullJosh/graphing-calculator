@@ -68,7 +68,7 @@ export function GraphExpression({ expression, color }: GraphExpressionProps) {
     const uColor = gl.getUniformLocation(shaderProgram, "uColor");
     const uIsRainbow = gl.getUniformLocation(shaderProgram, "uIsRainbow");
     return { uMinPos, uMaxPos, uCanvasSize, uColor, uIsRainbow };
-  }, [gl, mathJSON]);
+  }, [gl, expression, mathJSON]);
 
   // Render
   useEffect(() => {
@@ -353,6 +353,8 @@ function createShaderForExpression(
       }
     }
   `;
+
+  console.log(vsSource, fsSource);
 
   function loadShader(gl: WebGLRenderingContext, type: number, source: string) {
     const shader = gl.createShader(type)!;

@@ -28,3 +28,6 @@ rand = { version = "0.8.5", features = ["std_rng"], default-features = false }
 
 [dev-dependencies]
 criterion = "0.3"
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false

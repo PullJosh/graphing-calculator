@@ -2,6 +2,7 @@ use wasm_bindgen::prelude::*;
 
 use crate::equation::*;
 use crate::expression::*;
+use crate::log;
 use na::{OMatrix, U1, U2, U3};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -142,6 +143,11 @@ pub fn graph_function_2d(
     let mut contours = vec![];
     let mut contour: Contour2D = vec![];
 
+    // log(format!(
+    //     "Domain: {:?}",
+    //     expression.get_real_domain().basic_simplify()
+    // ));
+
     let mut variables = HashMap::new();
     use rand::Rng;
     let mut rng: rand::rngs::StdRng = rand::SeedableRng::seed_from_u64(0);
@@ -160,10 +166,12 @@ pub fn graph_function_2d(
 
         let y = expression.evaluate(&variables);
 
-        if flipped {
-            contour.push(Point2D(y, x));
-        } else {
-            contour.push(Point2D(x, y));
+        if y.is_finite() {
+            if flipped {
+                contour.push(Point2D(y, x));
+            } else {
+                contour.push(Point2D(x, y));
+            }
         }
     }
 

@@ -104,29 +104,6 @@ function getInt32Memory0() {
     }
     return cachedInt32Memory0;
 }
-/**
-* @param {string} math_json
-* @param {bigint} scale
-* @param {bigint} x
-* @param {bigint} y
-* @param {bigint} depth
-* @param {bigint} search_depth
-* @returns {string}
-*/
-export function graph_equation_to_contours_json(math_json, scale, x, y, depth, search_depth) {
-    try {
-        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-        const ptr0 = passStringToWasm0(math_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len0 = WASM_VECTOR_LEN;
-        wasm.graph_equation_to_contours_json(retptr, ptr0, len0, scale, x, y, depth, search_depth);
-        var r0 = getInt32Memory0()[retptr / 4 + 0];
-        var r1 = getInt32Memory0()[retptr / 4 + 1];
-        return getStringFromWasm0(r0, r1);
-    } finally {
-        wasm.__wbindgen_add_to_stack_pointer(16);
-        wasm.__wbindgen_free(r0, r1);
-    }
-}
 
 let cachedFloat64Memory0 = new Float64Array();
 
@@ -142,19 +119,20 @@ function getArrayF64FromWasm0(ptr, len) {
 }
 /**
 * @param {string} math_json
-* @param {bigint} scale
-* @param {bigint} x
-* @param {bigint} y
+* @param {number} x_min
+* @param {number} x_max
+* @param {number} y_min
+* @param {number} y_max
 * @param {bigint} depth
 * @param {bigint} search_depth
 * @returns {Float64Array}
 */
-export function graph_equation_to_float_array(math_json, scale, x, y, depth, search_depth) {
+export function graph_equation_to_float_array(math_json, x_min, x_max, y_min, y_max, depth, search_depth) {
     try {
         const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
         const ptr0 = passStringToWasm0(math_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len0 = WASM_VECTOR_LEN;
-        wasm.graph_equation_to_float_array(retptr, ptr0, len0, scale, x, y, depth, search_depth);
+        wasm.graph_equation_to_float_array(retptr, ptr0, len0, x_min, x_max, y_min, y_max, depth, search_depth);
         var r0 = getInt32Memory0()[retptr / 4 + 0];
         var r1 = getInt32Memory0()[retptr / 4 + 1];
         var v1 = getArrayF64FromWasm0(r0, r1).slice();

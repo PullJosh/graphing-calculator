@@ -6,6 +6,12 @@ import { GraphExpression } from "../components/GraphExpression";
 import { GraphEquation } from "../components/GraphEquation";
 import { GraphGrid } from "../components/GraphGrid";
 import dynamic from "next/dynamic";
+import { Graph3D } from "../components/Graph3D/Graph3D";
+import { GraphContours3D } from "../components/Graph3D/GraphContours3D";
+import { GraphEquation3D } from "../components/Graph3D/GraphEquation3D";
+import { GraphExpression3D } from "../components/Graph3D/GraphExpression3D";
+import { Box3, DoubleSide, Vector2, Vector3 } from "three";
+import { GraphInfiniteGrid3D } from "../components/Graph3D/GraphInfiniteGrid3D";
 
 const MathLiveInput = dynamic(
   () => import("../components/MathLiveInput").then((mod) => mod.MathLiveInput),
@@ -37,7 +43,7 @@ export default function Index() {
     {
       id: 1,
       type: "equation",
-      equation: "x^2+y^2=25",
+      equation: "x^2+y^2=9",
       color: "blue",
     },
     // { id: 2, type: "expression", expression: "x^2+y^2", color: "rainbow" },
@@ -142,32 +148,104 @@ export default function Index() {
       </div>
       <div
         ref={graphContainerRef}
-        className="flex items-center justify-center overflow-hidden"
+        className="relative flex items-center justify-center overflow-hidden"
       >
-        <Graph width={width} height={height}>
+        <Graph3D>
+          {/* <GraphContours3D
+            flatContours={new Float64Array([0, 0, 1, 1, 2, 0])}
+            color="red"
+          /> */}
+          {/* <GraphInfiniteGrid3D /> */}
+          <gridHelper position={[0, 0, 0]} />
           {items.map((item) => (
             <Fragment key={item.id}>
               {item.type === "expression" && (
-                <GraphExpression
-                  expression={item.expression}
-                  color={item.color}
-                />
+                <GraphExpression3D expression={item.expression} />
               )}
             </Fragment>
           ))}
-          <GraphGrid />
           {items.map((item) => (
             <Fragment key={item.id}>
               {item.type === "equation" && (
-                <GraphEquation equation={item.equation} color={item.color} />
+                <GraphEquation3D equation={item.equation} color={item.color} />
               )}
             </Fragment>
           ))}
-        </Graph>
+          <mesh>
+            <cylinderGeometry args={[3, 3, 10, 32, 1, true]} />
+            {/* <sphereGeometry args={[3, 32, 32]} /> */}
+            {/* <meshNormalMaterial side={DoubleSide} /> */}
+            {/* <meshPhysicalMaterial
+              color="#2567dd"
+              opacity={0.9}
+              side={DoubleSide}
+              transparent={true}
+            /> */}
+            <shaderMaterial
+              uniforms={{
+                divisionScale: { value: 1 },
+              }}
+              vertexShader={vertexShaderSource}
+              fragmentShader={fragmentShaderSource}
+              side={DoubleSide}
+              transparent={true}
+            />
+          </mesh>
+          {/* <GraphGrid /> */}
+        </Graph3D>
       </div>
     </div>
   );
 }
+
+const vertexShaderSource = `
+  varying vec2 vUv;
+  varying vec3 vPos;
+  varying vec3 vNormal;
+
+  void main() {
+    vUv = uv;
+    vPos = position;
+    vNormal = normal;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+
+const fragmentShaderSource = `
+  varying vec2 vUv;
+  varying vec3 vPos;
+  varying vec3 vNormal;
+
+  uniform vec2 u_vmin;
+  uniform vec2 u_vmax;
+
+  uniform float divisionScale;
+
+  #define PI 3.1415926535897932384626433832795
+
+  vec3 hsv2rgb(vec3 c) {
+    vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+    vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+    return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+  }
+
+  void main() {
+    float value = pow(abs(cos(PI * vPos.x / divisionScale)), 1000.0) * (1.0 - pow(abs(dot(vNormal, vec3(1.0, 0.0, 0.0))), 10.0))
+                + pow(abs(cos(PI * vPos.y / divisionScale)), 1000.0) * (1.0 - pow(abs(dot(vNormal, vec3(0.0, 1.0, 0.0))), 10.0))
+                + pow(abs(cos(PI * vPos.z / divisionScale)), 1000.0) * (1.0 - pow(abs(dot(vNormal, vec3(0.0, 0.0, 1.0))), 10.0));
+
+    vec3 color = mix(
+      vec3(37.0 / 255.0, 100.0 / 255.0, 235.0 / 255.0),
+      vec3(29.0 / 255.0, 79.0 / 255.0, 216.0 / 255.0),
+      value
+    );
+
+    // float fadeOut = smoothstep(4.5, 5.0, length(vPos.y));
+    float fadeOut = 0.0;
+
+    gl_FragColor = vec4(color, 0.9 - 0.9 * fadeOut);
+  }
+`;
 
 interface EquationInputProps {
   equation: string;

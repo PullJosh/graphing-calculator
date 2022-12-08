@@ -16,16 +16,22 @@
   "dependencies": {
     "@cortex-js/compute-engine": "^0.8.0",
     "@react-hook/size": "^2.1.2",
+    "@react-three/drei": "^9.40.0",
+    "@react-three/fiber": "^8.9.1",
     "comlink": "^4.3.1",
     "joshs_graphing_calculator_lib": "file:rust/joshs_graphing_calculator_lib/pkg",
     "mathlive": "^0.83.0",
-    "next": "^12.2.5",
-    "react": "^17.0.2",
-    "react-dom": "^17.0.2"
+    "next": "^13.0.3",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "three": "^0.146.0",
+    "tunnel-rat": "^0.1.0"
   },
   "devDependencies": {
     "@types/node": "^18.7.14",
     "@types/react": "^18.0.18",
+    "@types/react-dom": "^18.0.9",
+    "@types/three": "^0.146.0",
     "@wasm-tool/wasm-pack-plugin": "^1.6.0",
     "autoprefixer": "^10.4.8",
     "classnames": "^2.3.1",

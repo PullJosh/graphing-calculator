@@ -60,9 +60,13 @@ pub fn main() {
 
 pub fn graph_equation(
     math_json: String,
-    scale: i64,
-    x: i64,
-    y: i64,
+    // scale: i64,
+    // x: i64,
+    // y: i64,
+    x_min: f64,
+    x_max: f64,
+    y_min: f64,
+    y_max: f64,
     depth: i64,
     search_depth: i64,
 ) -> Vec<Contour2D> {
@@ -72,12 +76,13 @@ pub fn graph_equation(
 
     let equation = mathjson_value_to_equation(&value).unwrap();
 
-    let window = GraphBox::new(
-        2.0_f64.powf(scale as f64) * x as f64,
-        2.0_f64.powf(scale as f64) * (x + 1) as f64,
-        2.0_f64.powf(scale as f64) * y as f64,
-        2.0_f64.powf(scale as f64) * (y + 1) as f64,
-    );
+    // let window = GraphBox::new(
+    //     2.0_f64.powf(scale as f64) * x as f64,
+    //     2.0_f64.powf(scale as f64) * (x + 1) as f64,
+    //     2.0_f64.powf(scale as f64) * y as f64,
+    //     2.0_f64.powf(scale as f64) * (y + 1) as f64,
+    // );
+    let window = GraphBox::new(x_min, x_max, y_min, y_max);
 
     graph_equation_2d("x", "y", &window, &equation, depth, search_depth)
 }
@@ -85,19 +90,24 @@ pub fn graph_equation(
 #[wasm_bindgen]
 pub fn graph_equation_to_float_array(
     math_json: String,
-    scale: i64,
-    x: i64,
-    y: i64,
+    // scale: i64,
+    // x: i64,
+    // y: i64,
+    x_min: f64,
+    x_max: f64,
+    y_min: f64,
+    y_max: f64,
     depth: i64,
     search_depth: i64,
 ) -> Vec<f64> {
     console_error_panic_hook::set_once();
 
-    let graphed_equation = graph_equation(math_json, scale, x, y, depth, search_depth);
+    let graphed_equation =
+        graph_equation(math_json, x_min, x_max, y_min, y_max, depth, search_depth);
 
     let mut total_length = graphed_equation
         .iter()
-        .fold(0, |acc, contour| acc + contour.len());
+        .fold(0, |acc, contour| acc + 2 * contour.len());
     total_length += graphed_equation.len() * 2;
 
     let mut float_array = Vec::with_capacity(total_length);
@@ -155,6 +165,7 @@ fn mathjson_value_to_expression(value: &Value) -> Option<Box<dyn Expression>> {
         Value::Number(n) => Some(Box::new(Constant::new(n.as_f64().unwrap()))),
         Value::String(s) => match s.as_str() {
             "Pi" => Some(Box::new(Constant::new(std::f64::consts::PI))),
+            "ExponentialE" => Some(Box::new(Constant::new(std::f64::consts::E))),
             _ => Some(Box::new(Variable::new(s.to_string()))),
         },
         Value::Array(a) => {
@@ -179,10 +190,12 @@ fn mathjson_value_to_expression(value: &Value) -> Option<Box<dyn Expression>> {
                     }
                     Some(Box::new(Times::new(operands)))
                 }
+                "Negate" => Some(Box::new(Minus::new(operands[0].clone()))),
                 "Power" => Some(Box::new(Power::new(
                     operands[0].clone(),
                     operands[1].clone(),
                 ))),
+                "Ln" => Some(Box::new(Log::new(std::f64::consts::E, operands[0].clone()))),
                 "Sin" => Some(Box::new(Sin::new(operands[0].clone()))),
                 "Cos" => Some(Box::new(Cos::new(operands[0].clone()))),
                 "Tan" => Some(Box::new(Tan::new(operands[0].clone()))),

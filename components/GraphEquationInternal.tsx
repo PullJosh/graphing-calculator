@@ -15,6 +15,7 @@ export function GraphEquation({ equation, color }: GraphEquationProps) {
   const { graphWindow } = useContext(GraphContext)!;
 
   const mathJSON = useMemo(() => ce.parse(equation), [equation]);
+  console.log(JSON.stringify(mathJSON));
   let flatContours = useFlatContoursForEquation(mathJSON, graphWindow, 7n, 4n);
 
   return <GraphContours flatContours={flatContours} color={color} />;

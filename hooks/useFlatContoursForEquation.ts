@@ -40,10 +40,14 @@ export function useFlatContoursForEquation(
       searchDepth: bigint
     ) {
       try {
-        const regions = getOptimalRegions(desiredWindow);
+        // const regions = getOptimalRegions(desiredWindow);
         const getFlatContours = api.graphAllRegionsToFlatContours(
           JSON.stringify(equation),
-          regions,
+          // regions,
+          desiredWindow.minX,
+          desiredWindow.maxX,
+          desiredWindow.minY,
+          desiredWindow.maxY,
           depth,
           searchDepth
         );
@@ -74,22 +78,22 @@ export function useFlatContoursForEquation(
   return flatContours;
 }
 
-function getOptimalRegions(coverWindow: Box) {
-  const maxDim = Math.max(
-    coverWindow.maxX - coverWindow.minX,
-    coverWindow.maxY - coverWindow.minY
-  );
-  const scale = Math.ceil(Math.log2(maxDim)) - 1;
-  const minX = Math.floor(coverWindow.minX / 2 ** scale);
-  const maxX = Math.ceil(coverWindow.maxX / 2 ** scale);
-  const minY = Math.floor(coverWindow.minY / 2 ** scale);
-  const maxY = Math.ceil(coverWindow.maxY / 2 ** scale);
+// function getOptimalRegions(coverWindow: Box) {
+//   const maxDim = Math.max(
+//     coverWindow.maxX - coverWindow.minX,
+//     coverWindow.maxY - coverWindow.minY
+//   );
+//   const scale = Math.ceil(Math.log2(maxDim)) - 1;
+//   const minX = Math.floor(coverWindow.minX / 2 ** scale);
+//   const maxX = Math.ceil(coverWindow.maxX / 2 ** scale);
+//   const minY = Math.floor(coverWindow.minY / 2 ** scale);
+//   const maxY = Math.ceil(coverWindow.maxY / 2 ** scale);
 
-  let regions = [];
-  for (let x = minX; x < maxX; x++) {
-    for (let y = minY; y < maxY; y++) {
-      regions.push([scale, x, y]);
-    }
-  }
-  return regions;
-}
+//   let regions = [];
+//   for (let x = minX; x < maxX; x++) {
+//     for (let y = minY; y < maxY; y++) {
+//       regions.push([scale, x, y]);
+//     }
+//   }
+//   return regions;
+// }
