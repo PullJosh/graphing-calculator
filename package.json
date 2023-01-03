@@ -15,19 +15,25 @@
   "license": "ISC",
   "dependencies": {
     "@cortex-js/compute-engine": "^0.8.0",
+    "@next/font": "^13.1.1",
     "@react-hook/size": "^2.1.2",
+    "@react-spring/three": "^9.5.5",
     "@react-three/drei": "^9.40.0",
     "@react-three/fiber": "^8.9.1",
     "comlink": "^4.3.1",
     "joshs_graphing_calculator_lib": "file:rust/joshs_graphing_calculator_lib/pkg",
+    "katex": "^0.16.4",
     "mathlive": "^0.83.0",
     "next": "^13.0.3",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "three": "^0.146.0",
-    "tunnel-rat": "^0.1.0"
+    "tunnel-rat": "^0.1.0",
+    "usehooks-ts": "^2.9.1"
   },
   "devDependencies": {
+    "@tailwindcss/typography": "^0.5.8",
+    "@types/katex": "^0.16.0",
     "@types/node": "^18.7.14",
     "@types/react": "^18.0.18",
     "@types/react-dom": "^18.0.9",

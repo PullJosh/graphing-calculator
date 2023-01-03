@@ -60,9 +60,6 @@ pub fn main() {
 
 pub fn graph_equation(
     math_json: String,
-    // scale: i64,
-    // x: i64,
-    // y: i64,
     x_min: f64,
     x_max: f64,
     y_min: f64,
@@ -74,17 +71,15 @@ pub fn graph_equation(
 
     let value: Value = serde_json::from_str(&math_json).unwrap();
 
-    let equation = mathjson_value_to_equation(&value).unwrap();
+    let equation = mathjson_value_to_equation(&value);
 
-    // let window = GraphBox::new(
-    //     2.0_f64.powf(scale as f64) * x as f64,
-    //     2.0_f64.powf(scale as f64) * (x + 1) as f64,
-    //     2.0_f64.powf(scale as f64) * y as f64,
-    //     2.0_f64.powf(scale as f64) * (y + 1) as f64,
-    // );
+    if equation.is_none() {
+        return Vec::new();
+    }
+
     let window = GraphBox::new(x_min, x_max, y_min, y_max);
 
-    graph_equation_2d("x", "y", &window, &equation, depth, search_depth)
+    graph_equation_2d("x", "y", &window, &equation.unwrap(), depth, search_depth)
 }
 
 #[wasm_bindgen]
@@ -162,17 +157,17 @@ fn mathjson_value_to_expression(value: &Value) -> Option<Box<dyn Expression>> {
     console_error_panic_hook::set_once();
 
     match value {
-        Value::Number(n) => Some(Box::new(Constant::new(n.as_f64().unwrap()))),
+        Value::Number(n) => Some(Box::new(Constant::new(n.as_f64()?))),
         Value::String(s) => match s.as_str() {
             "Pi" => Some(Box::new(Constant::new(std::f64::consts::PI))),
             "ExponentialE" => Some(Box::new(Constant::new(std::f64::consts::E))),
             _ => Some(Box::new(Variable::new(s.to_string()))),
         },
         Value::Array(a) => {
-            let operator = a[0].as_str().unwrap();
+            let operator = a[0].as_str()?;
             let mut operands: Vec<Box<dyn Expression>> = Vec::new();
             for operand in a[1..].iter() {
-                operands.push(mathjson_value_to_expression(operand).unwrap());
+                operands.push(mathjson_value_to_expression(operand)?);
             }
 
             match operator {

@@ -1,427 +1,888 @@
-import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import {
+  Component,
+  createContext,
+  ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { GizmoHelper, GizmoViewcube, GizmoViewport } from "@react-three/drei";
 import {
-  OrbitControls,
-  MapControls,
-  GizmoHelper,
-  GizmoViewcube,
-  GizmoViewport,
-} from "@react-three/drei";
-import {
-  DoubleSide,
+  Camera,
   Object3D,
   OrthographicCamera,
   PerspectiveCamera,
   Quaternion,
   Vector3,
 } from "three";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import tunnel from "tunnel-rat";
 import classNames from "classnames";
+import { lerp, lerpQuaternion, lerpVec3, lerpWindow } from "../../utils/lerp";
+import { useEffectOnce } from "usehooks-ts";
 
-const t = tunnel();
+type Graph3DProps = Graph3DInnerProps;
 
-interface Graph3DProps {
-  children: ReactNode;
-}
+export function Graph3D(props: Omit<Graph3DProps, "UITunnel">) {
+  const [uiTunnel] = useState(() => tunnel());
 
-export function Graph3D({ children }: Graph3DProps) {
   return (
     <>
       <div className="absolute top-4 left-4 z-20">
-        <t.Out />
+        <uiTunnel.Out />
       </div>
-      <Canvas
-        // camera={{ position: [0, 10, 0], zoom: 1 }}
-        onCreated={(state) => (state.gl.localClippingEnabled = true)}
-      >
-        <DimensionAwareControls>
-          {({ dimension, setDimension }) => (
-            <>
-              <ambientLight />
-              <pointLight position={[10, 10, 10]} />
-              {/* <gridHelper position={[0, 0, 0]} /> */}
-              {/* <fog attach="fog" color="white" near={1} far={10} /> */}
-              {children}
-              <t.In>
-                <div className="flex space-x-2">
-                  <div className="bg-gray-200 p-1 rounded-md">
-                    <button
-                      className={classNames("text-sm px-2 py-1", {
-                        "bg-white shadow-sm rounded": dimension === "2D",
-                      })}
-                      onClick={() => setDimension("2D")}
-                      disabled={dimension === "2D"}
-                    >
-                      2D
-                    </button>
-                    <button
-                      className={classNames("text-sm px-2 py-1", {
-                        "bg-white shadow-sm rounded": dimension === "3D",
-                      })}
-                      onClick={() => setDimension("3D")}
-                      disabled={dimension === "3D"}
-                    >
-                      3D
-                    </button>
-                  </div>
-                  {dimension === "3D" && (
-                    <div className="bg-gray-200 p-1 rounded-md">
-                      <button
-                        className={classNames("text-sm px-2 py-1", {
-                          "bg-white shadow-sm rounded": false,
-                        })}
-                        disabled={true}
-                      >
-                        1st Person
-                      </button>
-                      <button
-                        className={classNames("text-sm px-2 py-1", {
-                          "bg-white shadow-sm rounded": true,
-                        })}
-                        disabled={true}
-                      >
-                        3rd Person
-                      </button>
-                    </div>
-                  )}
-                  {dimension === "3D" && (
-                    <div className="bg-gray-200 p-1 rounded-md">
-                      <button
-                        className={classNames("text-sm px-2 py-1", {
-                          "bg-white shadow-sm rounded": true,
-                        })}
-                        disabled={true}
-                      >
-                        Perspective
-                      </button>
-                      <button
-                        className={classNames("text-sm px-2 py-1", {
-                          "bg-white shadow-sm rounded": false,
-                        })}
-                        disabled={true}
-                      >
-                        Isometric
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </t.In>
-              {dimension === "3D" && (
-                <>
-                  <GizmoHelper alignment="top-right" margin={[80, 80]}>
-                    <GizmoViewcube
-                      color="#eee"
-                      faces={[
-                        "Right",
-                        "Left",
-                        "Top",
-                        "Bottom",
-                        "Front",
-                        "Back",
-                      ]}
-                      hoverColor="#ccc"
-                      opacity={0.8}
-                      strokeColor="#333"
-                      textColor="#333"
-                    />
-                  </GizmoHelper>
-                  <GizmoHelper alignment="bottom-right" margin={[80, 80]}>
-                    <GizmoViewport />
-                  </GizmoHelper>
-                </>
-              )}
-            </>
-          )}
-        </DimensionAwareControls>
+      <Canvas gl={{ localClippingEnabled: true }}>
+        <Graph3DInner {...props} UITunnel={uiTunnel.In} />
       </Canvas>
     </>
   );
 }
 
-interface DimensionAwareControlsProps {
-  children: (props: {
-    dimension: "2D" | "3D";
-    setDimension: (newDimension: "2D" | "3D") => void;
-  }) => ReactNode;
+export const Graph3DContext = createContext<ViewInfo>({
+  dimension: { value: "3D" },
+  setDimension: () => {},
+  cameraType: { value: "perspective" },
+  setCameraType: () => {},
+  window: {
+    value: [
+      [-5, -5, -5],
+      [5, 5, 5],
+    ],
+  },
+  windowWorldCoordinates: {
+    value: [
+      [-1, -1, -1],
+      [1, 1, 1],
+    ],
+  },
+  toSceneX: () => 0,
+  toSceneY: () => 0,
+  toSceneZ: () => 0,
+});
+
+interface Graph3DInnerProps {
+  children: (data: ViewInfo) => ReactNode;
+  UITunnel: (props: { children: ReactNode }) => null;
+  showControls?: boolean;
+  defaultDimension?: Dimension;
+  defaultCameraType?: CameraType;
+  autoRotate?: boolean;
 }
 
-function DimensionAwareControls({ children }: DimensionAwareControlsProps) {
-  const [dimension, setDimension] = useState<"2D" | "3D">("3D");
-  const [cameraType, setCameraType] = useState<"perspective" | "orthographic">(
-    "perspective"
+function Graph3DInner({
+  children,
+  UITunnel,
+  showControls = true,
+  defaultDimension = "3D",
+  defaultCameraType = defaultDimension === "3D"
+    ? "perspective"
+    : "orthographic",
+  autoRotate = false,
+}: Graph3DInnerProps) {
+  const viewInfo = useDimensionCamerasAndControls(
+    defaultDimension,
+    defaultCameraType,
+    autoRotate
   );
 
-  const perspectiveCameraRef = useRef<PerspectiveCamera | null>(null);
-  const orthographicCameraRef = useRef<OrthographicCamera | null>(null);
-  const mapControlsRef = useRef<any>(null);
-  const orbitControlsRef = useRef<any>(null);
+  const {
+    dimension,
+    setDimension,
+    cameraType,
+    setCameraType,
+    window,
+    windowWorldCoordinates,
+  } = viewInfo;
 
-  const transitionInfo = useRef<{
-    startTime: number;
-    duration: number;
-    isFirstFrame: boolean;
-    focusPoint: Vector3;
-    radius: number;
-    startAngle: Quaternion;
-    endAngle: Quaternion;
-    newCameraType: "perspective" | "orthographic";
-  } | null>(null);
+  return (
+    <Graph3DContext.Provider value={viewInfo}>
+      <ambientLight />
+      <pointLight position={[10, 10, 10]} />
+      {/* <gridHelper position={[0, 0, 0]} /> */}
+      {/* <fog attach="fog" color="white" near={1} far={10} /> */}
+      {children(viewInfo)}
+      <UITunnel>
+        {showControls && (
+          <div className="flex space-x-2">
+            <div className="bg-gray-200 p-1 rounded-md flex">
+              <button
+                className={classNames("flex text-sm px-2 py-1", {
+                  "bg-white shadow-sm rounded": dimension.value === "1D",
+                })}
+                onClick={() => setDimension("1D")}
+                disabled={dimension.value === "1D"}
+              >
+                1D
+              </button>
+              <button
+                className={classNames("flex text-sm px-2 py-1", {
+                  "bg-white shadow-sm rounded": dimension.value === "2D",
+                })}
+                onClick={() => setDimension("2D")}
+                disabled={dimension.value === "2D"}
+              >
+                2D
+              </button>
+              <button
+                className={classNames("flex text-sm px-2 py-1", {
+                  "bg-white shadow-sm rounded": dimension.value === "3D",
+                })}
+                onClick={() => setDimension("3D")}
+                disabled={dimension.value === "3D"}
+              >
+                3D
+              </button>
+            </div>
+            {dimension.value === "3D" && (
+              <div className="bg-gray-200 p-1 rounded-md flex">
+                <button
+                  className={classNames("flex text-sm px-2 py-1", {
+                    "bg-white shadow-sm rounded":
+                      cameraType.value === "perspective",
+                  })}
+                  onClick={() => setCameraType("perspective")}
+                  disabled={cameraType.value === "perspective"}
+                  title="Perspective camera"
+                >
+                  <svg
+                    viewBox="0 0 20 20"
+                    width={20}
+                    height={20}
+                    fill="none"
+                    className="block stroke-gray-600"
+                    strokeWidth={2}
+                    style={{
+                      strokeLinecap: "round",
+                      strokeLinejoin: "round",
+                    }}
+                  >
+                    <g transform="matrix(1,0,0,1,0,-0.75)">
+                      <path d="M2.206,5.5L10,2.5L17.794,5.5L10,10L2.206,5.5Z" />
+                    </g>
+                    <g transform="matrix(-0.5,0.866025,-0.866025,-0.5,23.6603,5.58975)">
+                      <path d="M2.206,5.5L10,2.5L17.794,5.5L10,10L2.206,5.5Z" />
+                    </g>
+                    <g transform="matrix(-0.5,-0.866025,0.866025,-0.5,6.33975,22.9103)">
+                      <path d="M2.206,5.5L10,2.5L17.794,5.5L10,10L2.206,5.5Z" />
+                    </g>
+                  </svg>
+                </button>
+                <button
+                  className={classNames("flex text-sm px-2 py-1", {
+                    "bg-white shadow-sm rounded":
+                      cameraType.value === "orthographic",
+                  })}
+                  onClick={() => setCameraType("orthographic")}
+                  disabled={cameraType.value === "orthographic"}
+                  title="Orthographic camera"
+                >
+                  <svg
+                    viewBox="0 0 20 20"
+                    width={20}
+                    height={20}
+                    fill="none"
+                    className="block stroke-gray-600"
+                    strokeWidth={2}
+                    style={{
+                      strokeLinecap: "round",
+                      strokeLinejoin: "round",
+                    }}
+                  >
+                    <path d="M2.206,5.5L10,1L17.794,5.5L10,10L2.206,5.5Z" />
+                    <path d="M2.206,14.5L2.206,5.5L10,10L10,19L2.206,14.5Z" />
+                    <path d="M10,10L10,19L17.794,14.5L17.794,5.5L10,10Z" />
+                  </svg>
+                </button>
+              </div>
+            )}
+            {dimension.value === "3D" && (
+              <div className="bg-gray-200 p-1 rounded-md flex opacity-50">
+                <button
+                  className={classNames("flex text-sm px-2 py-1", {
+                    "bg-white shadow-sm rounded": false,
+                  })}
+                  disabled={true}
+                >
+                  1st Person
+                </button>
+                <button
+                  className={classNames("flex text-sm px-2 py-1", {
+                    "bg-white shadow-sm rounded": true,
+                  })}
+                  disabled={true}
+                >
+                  3rd Person
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </UITunnel>
+      {dimension.value === "3D" && showControls && (
+        <>
+          <GizmoHelper alignment="top-right" margin={[80, 80]}>
+            <GizmoViewcube
+              color="#eee"
+              faces={["Right", "Left", "Top", "Bottom", "Front", "Back"]}
+              hoverColor="#ccc"
+              opacity={0.8}
+              strokeColor="#333"
+              textColor="#333"
+            />
+          </GizmoHelper>
+          <GizmoHelper alignment="bottom-right" margin={[80, 80]}>
+            <GizmoViewport />
+          </GizmoHelper>
+        </>
+      )}
+    </Graph3DContext.Provider>
+  );
+}
 
-  const transitionCamera = useCallback(
-    (
-      newCameraType: "perspective" | "orthographic",
-      newDirection: Vector3 | null = null,
-      duration = 500
-    ) => {
-      const pCam = perspectiveCameraRef.current!;
-      const oCam = orthographicCameraRef.current!;
+type Dimension = "1D" | "2D" | "3D";
+type CameraType = "perspective" | "orthographic";
 
-      const currentControls =
-        dimension === "3D" ? orbitControlsRef.current : mapControlsRef.current;
+interface ViewOptionsStatic {
+  dimension: Dimension;
+  cameraType: CameraType;
+  window: [[number, number, number], [number, number, number]];
+  windowWorldCoordinates: [[number, number, number], [number, number, number]];
+}
 
-      const focusPoint = currentControls.target;
+type ViewOptions = {
+  [K in keyof ViewOptionsStatic]: AnimatableValue<ViewOptionsStatic[K]>;
+};
 
-      if (cameraType === "orthographic" && newCameraType === "perspective") {
-        // Switching from Orthographic -> Perspective
-        // Set the perspective camera's position to be equivalent to that of the
-        // orthographic camera
-        pCam.fov = 50;
-        const desiredHeight = oCam.top - oCam.bottom;
-        const requiredDist =
-          desiredHeight / (2 * Math.tan((pCam.fov / 2) * (Math.PI / 180)));
-        pCam.position
-          .copy(oCam.position)
-          .normalize()
-          .multiplyScalar(requiredDist);
-        pCam.quaternion.copy(oCam.quaternion);
-        pCam.zoom = oCam.zoom;
-        pCam.updateProjectionMatrix();
-      }
+type ViewInfo = ViewOptions & {
+  setDimension: (newDimension: Dimension) => void;
+  setCameraType: (newCameraType: CameraType) => void;
 
-      const radius = pCam.position.distanceTo(focusPoint);
-      const startAngle = pCam.quaternion.clone();
+  toSceneX: (x: number) => number;
+  toSceneY: (y: number) => number;
+  toSceneZ: (z: number) => number;
+};
 
-      // Compute endAngle based on the provided `newDirection`
-      let endAngle: Quaternion;
-      if (newDirection === null) {
-        endAngle = startAngle.clone();
-      } else {
-        const targetPosition = newDirection
-          .clone()
-          .multiplyScalar(radius)
-          .add(focusPoint);
+type AnimatableValue<T> = {
+  value: T;
+  from?: T;
+  to?: T;
+  progress?: number;
+};
 
-        const dummy = new Object3D();
-        dummy.position.copy(focusPoint);
-        dummy.lookAt(targetPosition);
+const ORBIT_DISTANCE = 4;
 
-        endAngle = dummy.quaternion.clone();
-      }
+const perspectiveFov = 50;
+const orthographicFov = 0.01;
+const near = 0.1;
+const far = 1000;
 
-      transitionInfo.current = {
-        startTime: Date.now(),
-        duration,
-        isFirstFrame: true,
+// Get quaternion pointing from target toward camera
+const directionToAngle = (direction: Vector3): Quaternion => {
+  const dummy = new Object3D(); // Object positioned at origin
+  dummy.lookAt(direction);
+  return dummy.quaternion.clone();
+};
 
-        focusPoint,
-        radius,
+type Window = [[number, number, number], [number, number, number]];
+function getIdealWindow(
+  dimension: Dimension,
+  aspect: number
+): [Window, Window] {
+  // Get top/bottom/left/right coordinates of orthographic camera
+  const top = ORBIT_DISTANCE * Math.tan((perspectiveFov / 2) * (Math.PI / 180));
+  const bottom = -top;
+  const right = top * aspect;
+  const left = -right;
 
-        startAngle: startAngle,
-        endAngle: endAngle,
+  switch (dimension) {
+    case "1D":
+      return [
+        [
+          [-5, 0, 0],
+          [5, 0, 0],
+        ],
+        [
+          [left, 0, 0],
+          [right, 0, 0],
+        ],
+      ];
+    case "2D":
+      return [
+        [
+          [-5, -5 / aspect, 0],
+          [5, 5 / aspect, 0],
+        ],
+        [
+          [left, bottom, 0],
+          [right, top, 0],
+        ],
+      ];
+    case "3D":
+      return [
+        [
+          [-5, -5, -5],
+          [5, 5, 5],
+        ],
+        [
+          [-1, -1, -1],
+          [1, 1, 1],
+        ],
+      ];
+  }
+}
 
-        newCameraType,
-      };
-    },
-    [cameraType, dimension]
+function useDimensionCamerasAndControls(
+  defaultDimension: Dimension = "3D",
+  defaultCameraType: CameraType = "perspective",
+  autoRotate: boolean = false
+): ViewInfo {
+  if (defaultDimension !== "3D" && defaultCameraType !== "orthographic") {
+    console.error(
+      "Passed invalid combination: defaultDimension = ",
+      defaultDimension,
+      ", defaultCameraType = ",
+      defaultCameraType
+    );
+    defaultCameraType = "orthographic"; // Don't allow illegal combinations
+  }
+
+  const pCam = usePerspectiveCamera(defaultCameraType === "perspective");
+  const oCam = useOrthographicCamera(defaultCameraType === "orthographic");
+
+  const orbitControls = useOrbitControls(
+    defaultCameraType === "perspective" ? pCam : oCam,
+    defaultDimension === "3D",
+    autoRotate
   );
 
-  const { set, viewport } = useThree();
-  useFrame(() => {
-    const pCam = perspectiveCameraRef.current!;
+  const { viewport } = useThree();
 
-    pCam.aspect = viewport.aspect;
-    pCam.updateProjectionMatrix();
+  const [dimension, setDimensionRaw] = useState<AnimatableValue<Dimension>>({
+    value: defaultDimension,
   });
 
-  // Continually run camera transition code
-  useFrame(() => {
-    const pCam = perspectiveCameraRef.current!;
-    const oCam = orthographicCameraRef.current!;
+  const [cameraType, setCameraTypeRaw] = useState<AnimatableValue<CameraType>>({
+    value: defaultCameraType,
+  });
 
-    if (transitionInfo.current === null) return;
+  const [default3DCameraType, setDefault3DCameraType] =
+    useState<CameraType>("perspective");
 
-    // oCam.left = oCam.top * viewport.aspect;
-    // oCam.right = oCam.bottom * viewport.aspect;
+  const [defaultWindow, defaultWWC] = getIdealWindow(
+    defaultDimension,
+    viewport.aspect
+  );
+  const [window, setWindow] = useState<AnimatableValue<Window>>({
+    value: defaultWindow,
+  });
+  const [windowWorldCoordinates, setWindowWorldCoordinates] = useState<
+    AnimatableValue<Window>
+  >({ value: defaultWWC });
 
-    const {
-      startTime,
-      duration,
+  const animate = useAnimateThree();
 
-      focusPoint,
-      radius,
+  const updateCameras = useCallback(
+    (fov: number, target: Vector3, angle: Quaternion, distance: number) => {
+      const requiredHeight =
+        distance * Math.tan((perspectiveFov / 2) * (Math.PI / 180));
+      const actualDistance =
+        requiredHeight / Math.tan((fov / 2) * (Math.PI / 180));
 
-      startAngle,
-      endAngle,
-
-      newCameraType,
-    } = transitionInfo.current;
-
-    // Do special work on first frame
-    if (transitionInfo.current.isFirstFrame) {
-      transitionInfo.current.isFirstFrame = false;
-
-      if (newCameraType === "perspective") {
-        setCameraType("perspective");
-        set({ camera: pCam });
-      }
-    }
-
-    let t = (Date.now() - startTime) / duration;
-    if (t > 1) t = 1;
-
-    const ease = (t: number) => t * t * t * (t * (t * 6 - 15) + 10);
-    const lerp = (a: number, b: number, t: number) => a * (1 - t) + b * t;
-
-    const angle = new Quaternion().slerpQuaternions(
-      startAngle,
-      endAngle,
-      ease(t)
-    );
-
-    const fov =
-      newCameraType === "orthographic"
-        ? lerp(50, 0.1, ease(t))
-        : lerp(0.1, 50, ease(t));
-    pCam.fov = fov;
-    pCam.updateProjectionMatrix();
-
-    // Get height of camera view at the focus point when fov = 50
-    const desiredHeight = 2 * Math.tan((50 / 2) * (Math.PI / 180)) * radius;
-
-    // Find the distance from the focus point that the camera needs to be at
-    // to achieve the desired height using the current fov
-    const requiredDist =
-      desiredHeight / (2 * Math.tan((pCam.fov / 2) * (Math.PI / 180)));
-
-    console.log(fov, requiredDist, radius);
-
-    pCam.position
-      .set(0, 0, 1)
-      .applyQuaternion(angle)
-      .multiplyScalar(requiredDist)
-      .add(focusPoint);
-    // pCam.up.set(0, 1, 0).applyQuaternion(angle).normalize();
-    pCam.quaternion.copy(angle);
-    pCam.updateProjectionMatrix();
-
-    oCam.position
-      .set(0, 0, 1)
-      .applyQuaternion(angle)
-      .multiplyScalar(radius)
-      .add(focusPoint);
-    // oCam.up.set(0, 1, 0).applyQuaternion(angle).normalize();
-    oCam.quaternion.copy(angle);
-    oCam.top = desiredHeight / 2;
-    oCam.bottom = -desiredHeight / 2;
-    oCam.left = oCam.bottom * viewport.aspect;
-    oCam.right = oCam.top * viewport.aspect;
-    oCam.updateProjectionMatrix();
-
-    mapControlsRef.current.update();
-
-    // Do special work on last frame
-    if (t >= 1) {
-      oCam.up.set(0, 1, 0);
-      pCam.up.set(0, 1, 0);
-      oCam.updateProjectionMatrix();
+      pCam.fov = fov;
+      pCam.position
+        .set(0, 0, 1)
+        .applyQuaternion(angle)
+        .multiplyScalar(actualDistance)
+        .add(target);
+      pCam.quaternion.copy(angle);
       pCam.updateProjectionMatrix();
 
-      if (newCameraType === "orthographic") {
-        setCameraType("orthographic");
-        set({ camera: oCam });
-      }
+      oCam.position
+        .set(0, 0, 1)
+        .applyQuaternion(angle)
+        .multiplyScalar(distance)
+        .add(target);
+      oCam.quaternion.copy(angle);
+      oCam.top = requiredHeight;
+      oCam.bottom = -requiredHeight;
+      oCam.right = requiredHeight * viewport.aspect;
+      oCam.left = -requiredHeight * viewport.aspect;
+      oCam.updateProjectionMatrix();
+    },
+    [oCam, pCam, viewport.aspect]
+  );
 
-      orbitControlsRef.current.update();
-      transitionInfo.current = null;
+  useEffectOnce(() => {
+    switch (defaultDimension) {
+      case "1D":
+      case "2D":
+        updateCameras(
+          orthographicFov,
+          new Vector3(0, 0, 0),
+          directionToAngle(new Vector3(0, 1, 0)),
+          ORBIT_DISTANCE
+        );
+        break;
+      case "3D":
+        updateCameras(
+          defaultCameraType === "perspective"
+            ? perspectiveFov
+            : orthographicFov,
+          new Vector3(0, 0, 0),
+          directionToAngle(new Vector3(1, 1, 1)),
+          ORBIT_DISTANCE
+        );
+        break;
     }
   });
 
-  const setDimensionAndTransitionCamera = useCallback(
-    (newDimension: "2D" | "3D") => {
-      switch (newDimension) {
-        case "2D": {
-          // Transition to 2D
-          mapControlsRef.current.target.copy(orbitControlsRef.current.target);
-          mapControlsRef.current.zoom = perspectiveCameraRef.current!.zoom;
-          mapControlsRef.current.update();
+  interface CameraKeyframe {
+    dimension: Dimension;
 
-          // transitionCamera("orthographic", new Vector3(0, 1, 0));
-          transitionCamera("orthographic");
+    cameraType: CameraType;
+    cameraTarget: Vector3;
+    cameraDirection: Vector3;
+    cameraDistance: number;
+
+    window: [[number, number, number], [number, number, number]];
+    windowWorldCoordinates: [
+      [number, number, number],
+      [number, number, number]
+    ];
+  }
+  const animateCameraMove = useCallback(
+    (
+      toPartial: Partial<CameraKeyframe>,
+      fromPartial?: Partial<CameraKeyframe>,
+      onComplete?: () => void
+    ) => {
+      const currentKeyframe: CameraKeyframe = {
+        dimension: dimension.value,
+        cameraType: cameraType.value,
+        cameraTarget: new Vector3(0, 0, 0),
+        cameraDirection:
+          cameraType.value === "perspective"
+            ? pCam.position.clone().sub(new Vector3(0, 0, 0)).normalize()
+            : oCam.position.clone().sub(new Vector3(0, 0, 0)).normalize(),
+        cameraDistance:
+          cameraType.value === "perspective"
+            ? pCam.position.clone().sub(new Vector3(0, 0, 0)).length()
+            : oCam.position.clone().sub(new Vector3(0, 0, 0)).length(),
+        window: window.value,
+        windowWorldCoordinates: windowWorldCoordinates.value,
+      };
+
+      const from: CameraKeyframe = { ...currentKeyframe, ...fromPartial };
+      let to: CameraKeyframe = { ...currentKeyframe, ...toPartial };
+
+      if (to.dimension === "3D" && from.dimension !== "3D") {
+        if (!("cameraType" in toPartial)) {
+          // If switching to 3D and camera type not specified, use default
+          to.cameraType = default3DCameraType;
+        }
+      }
+
+      const fromFov =
+        from.cameraType === "perspective" ? perspectiveFov : orthographicFov;
+      const toFov =
+        to.cameraType === "perspective" ? perspectiveFov : orthographicFov;
+
+      const fromAngle = directionToAngle(from.cameraDirection);
+      const toAngle = directionToAngle(to.cameraDirection);
+
+      const updateState = (t: number) => {
+        setDimensionRaw({
+          value: to.dimension,
+          from: from.dimension,
+          to: to.dimension,
+          progress: t,
+        });
+        setCameraTypeRaw({
+          value: to.cameraType,
+          from: from.cameraType,
+          to: to.cameraType,
+          progress: t,
+        });
+        setWindow({
+          value: lerpWindow(from.window, to.window, t),
+          from: from.window,
+          to: to.window,
+          progress: t,
+        });
+        setWindowWorldCoordinates({
+          value: lerpWindow(
+            from.windowWorldCoordinates,
+            to.windowWorldCoordinates,
+            t
+          ),
+          from: from.windowWorldCoordinates,
+          to: to.windowWorldCoordinates,
+          progress: t,
+        });
+      };
+
+      return animate({
+        onStart: (get, set) => {
+          updateCameras(
+            fromFov,
+            from.cameraTarget,
+            fromAngle,
+            from.cameraDistance
+          );
+          updateState(0);
+
+          orbitControls.enabled = false;
+
+          if (
+            from.cameraType === "orthographic" &&
+            to.cameraType === "orthographic"
+          ) {
+            set({ camera: oCam });
+          } else {
+            set({ camera: pCam });
+          }
+        },
+        onFrame: (t, get, set) => {
+          const fov = lerp(fromFov, toFov, t);
+          const target = lerpVec3(from.cameraTarget, to.cameraTarget, t);
+          const angle = lerpQuaternion(fromAngle, toAngle, t);
+          const distance = lerp(from.cameraDistance, to.cameraDistance, t);
+
+          updateCameras(fov, target, angle, distance);
+          updateState(t);
+        },
+        onComplete: (get, set) => {
+          updateCameras(toFov, to.cameraTarget, toAngle, to.cameraDistance);
+          updateState(1);
+
+          set({ camera: to.cameraType === "perspective" ? pCam : oCam });
+          if (to.dimension === "3D") {
+            orbitControls.object =
+              to.cameraType === "perspective" ? pCam : oCam;
+          }
+
+          orbitControls.enabled = to.dimension === "3D";
+
+          onComplete?.();
+        },
+        ease: easeInOut,
+        duration: to.dimension !== from.dimension ? 500 : 300,
+      });
+    },
+    [
+      dimension.value,
+      cameraType.value,
+      pCam,
+      oCam,
+      window.value,
+      windowWorldCoordinates.value,
+      animate,
+      default3DCameraType,
+      updateCameras,
+      orbitControls,
+    ]
+  );
+
+  const setDimension = useCallback(
+    (newDimension: Dimension) => {
+      const [window, windowWorldCoordinates] = getIdealWindow(
+        newDimension,
+        viewport.aspect
+      );
+
+      switch (newDimension) {
+        case "1D": {
+          animateCameraMove({
+            dimension: "1D",
+            cameraType: "orthographic",
+            cameraTarget: new Vector3(0, 0, 0),
+            cameraDirection: new Vector3(0, 1, 0),
+            cameraDistance: ORBIT_DISTANCE,
+            window,
+            windowWorldCoordinates,
+          });
+          break;
+        }
+        case "2D": {
+          animateCameraMove({
+            dimension: "2D",
+            cameraType: "orthographic",
+            cameraTarget: new Vector3(0, 0, 0),
+            cameraDirection: new Vector3(0, 1, 0),
+            cameraDistance: ORBIT_DISTANCE,
+            window,
+            windowWorldCoordinates,
+          });
           break;
         }
         case "3D": {
-          // Transition to 3D
-          orbitControlsRef.current.target.copy(mapControlsRef.current.target);
-          orbitControlsRef.current.zoom = perspectiveCameraRef.current!.zoom;
-          orbitControlsRef.current.update();
-
-          // transitionCamera("perspective", new Vector3(1, 1, 1));
-          transitionCamera("perspective");
+          animateCameraMove({
+            dimension: "3D",
+            cameraTarget: new Vector3(0, 0, 0),
+            cameraDirection: new Vector3(1, 1, 1).normalize(),
+            cameraDistance: ORBIT_DISTANCE,
+            window,
+            windowWorldCoordinates,
+          });
           break;
         }
       }
-
-      setDimension(newDimension);
     },
-    [transitionCamera]
+    [viewport.aspect, animateCameraMove]
   );
 
-  // Use the perspective camera as the default camera
-  const { camera } = useThree();
+  const setCameraType = useCallback(
+    (newCameraType: CameraType) => {
+      if (dimension.value !== "3D") {
+        console.error(
+          `Cannot set camera type to ${newCameraType} when in ${dimension.value} (works in 3D only)`
+        );
+        return;
+      }
+
+      setDefault3DCameraType(newCameraType);
+      animateCameraMove({ cameraType: newCameraType });
+    },
+    [animateCameraMove, dimension.value]
+  );
+
+  const toSceneX = useCallback(
+    (x: number) => {
+      if (window.value[1][0] === window.value[0][0]) {
+        return windowWorldCoordinates.value[0][0];
+      }
+
+      return (
+        ((x - window.value[0][0]) / (window.value[1][0] - window.value[0][0])) *
+          (windowWorldCoordinates.value[1][0] -
+            windowWorldCoordinates.value[0][0]) +
+        windowWorldCoordinates.value[0][0]
+      );
+    },
+    [window.value, windowWorldCoordinates.value]
+  );
+
+  const toSceneY = useCallback(
+    (y: number) => {
+      if (window.value[1][1] === window.value[0][1]) {
+        return windowWorldCoordinates.value[0][1];
+      }
+
+      return (
+        ((y - window.value[0][1]) / (window.value[1][1] - window.value[0][1])) *
+          (windowWorldCoordinates.value[1][1] -
+            windowWorldCoordinates.value[0][1]) +
+        windowWorldCoordinates.value[0][1]
+      );
+    },
+    [window.value, windowWorldCoordinates.value]
+  );
+
+  const toSceneZ = useCallback(
+    (z: number) => {
+      if (window.value[1][2] === window.value[0][2]) {
+        return windowWorldCoordinates.value[0][2];
+      }
+
+      return (
+        ((z - window.value[0][2]) / (window.value[1][2] - window.value[0][2])) *
+          (windowWorldCoordinates.value[1][2] -
+            windowWorldCoordinates.value[0][2]) +
+        windowWorldCoordinates.value[0][2]
+      );
+    },
+    [window.value, windowWorldCoordinates.value]
+  );
+
+  return {
+    dimension,
+    cameraType,
+    window,
+    windowWorldCoordinates,
+    setDimension,
+    setCameraType,
+    toSceneX,
+    toSceneY,
+    toSceneZ,
+  };
+}
+
+const easeInOut = (t: number) => t * t * t * (t * (t * 6 - 15) + 10);
+
+function useAnimateThree() {
+  const { get, set } = useThree();
+  type Get = typeof get;
+  type Set = typeof set;
+
+  const animationRef = useRef<{
+    startDate: number;
+    duration: number;
+    onFrame: (t: number, get: Get, set: Set) => void;
+    onComplete: (get: Get, set: Set) => void;
+    ease: (t: number) => number;
+  } | null>(null);
+
+  useFrame(() => {
+    const animation = animationRef.current;
+    if (animation === null) return;
+
+    const { startDate, duration, ease, onFrame, onComplete } = animation;
+
+    let t = (Date.now() - startDate) / duration;
+    if (t > 1) t = 1;
+
+    onFrame(ease(t), get, set);
+
+    if (t >= 1) {
+      onComplete(get, set);
+      animationRef.current = null;
+    }
+  });
+
+  const animate = (
+    options: Partial<{
+      onStart: (get: Get, set: Set) => void;
+      onFrame: (t: number, get: Get, set: Set) => void;
+      onComplete: (get: Get, set: Set) => void;
+      duration: number;
+      ease: (t: number) => number;
+    }> = {}
+  ) => {
+    const { onStart, onFrame, onComplete, duration, ease } = options;
+
+    return new Promise<void>((resolve) => {
+      onStart?.(get, set);
+      animationRef.current = {
+        startDate: Date.now(),
+        duration: duration ?? 500,
+        onFrame: onFrame ?? (() => {}),
+        onComplete: (get, set) => {
+          onComplete?.(get, set);
+          resolve();
+        },
+        ease: ease ?? ((t) => t),
+      };
+    });
+  };
+
+  return animate;
+}
+
+function usePerspectiveCamera(setAsDefaultForScene: boolean) {
+  const { set, viewport, gl } = useThree();
+
+  const [perspectiveCamera] = useState(() => {
+    const pCam = new PerspectiveCamera(
+      perspectiveFov,
+      viewport.aspect,
+      near,
+      far
+    );
+
+    // Mark camera as "manual", which prevents react-three-fiber from
+    // trying to handle fov updates when the viewport changes automatically.
+    (pCam as any).manual = true;
+
+    // Initialize camera in <1, 1, 1> direction
+    pCam.position.set(1, 1, 1).normalize().multiplyScalar(ORBIT_DISTANCE);
+    pCam.lookAt(0, 0, 0);
+
+    if (setAsDefaultForScene) {
+      set({ camera: pCam });
+    }
+
+    return pCam;
+  });
+
   useEffect(() => {
-    const pCam = perspectiveCameraRef.current;
-    const oCam = orthographicCameraRef.current;
+    const updateAspect = () => {
+      perspectiveCamera.aspect = viewport.aspect;
+      perspectiveCamera.updateProjectionMatrix();
+    };
 
-    if (cameraType === "perspective" && camera !== pCam) {
-      set({ camera: pCam! });
-    }
-    if (cameraType === "orthographic" && camera !== oCam) {
-      set({ camera: oCam! });
-    }
-  }, [camera, cameraType, set]);
+    window.addEventListener("resize", updateAspect);
+    return () => {
+      window.removeEventListener("resize", updateAspect);
+    };
+  }, [gl.domElement, perspectiveCamera, viewport]);
 
-  return (
-    <>
-      <perspectiveCamera
-        ref={perspectiveCameraRef}
-        position={[10, 10, 10]}
-        fov={50}
-        zoom={1}
-      />
-      <orthographicCamera ref={orthographicCameraRef} position={[10, 10, 10]} />
-      <MapControls
-        ref={mapControlsRef}
-        attach="mapControls"
-        camera={orthographicCameraRef.current!}
-        enabled={dimension === "2D"}
-        makeDefault={dimension === "2D"}
-        enableDamping={false}
-        // dampingFactor={0.3}
-        enableRotate={false}
-        enablePan={true}
-        enableZoom={true}
-      />
-      <OrbitControls
-        ref={orbitControlsRef}
-        attach="orbitControls"
-        camera={perspectiveCameraRef.current!}
-        enabled={dimension === "3D"}
-        makeDefault={dimension === "3D"}
-        zoomSpeed={1.0}
-        enablePan={true}
-        dampingFactor={0.2}
-      />
-      {children({ dimension, setDimension: setDimensionAndTransitionCamera })}
-    </>
-  );
+  return perspectiveCamera;
+}
+
+function useOrthographicCamera(setAsDefaultForScene: boolean) {
+  const { set, viewport } = useThree();
+
+  const [orthographicCamera] = useState(() => {
+    const oCam = new OrthographicCamera(
+      // These left, right, top, and bottom values might be wrong
+      -viewport.width / 2,
+      viewport.width / 2,
+      viewport.height / 2,
+      -viewport.height / 2,
+
+      0.001,
+      1000
+    );
+
+    // Mark camera as "manual", which prevents react-three-fiber from
+    // trying to handle top/bottom/left/right updates when the viewport changes automatically.
+    (oCam as any).manual = true;
+
+    // Initialize camera in <1, 1, 1> direction
+    oCam.position.set(1, 1, 1).normalize().multiplyScalar(ORBIT_DISTANCE);
+    oCam.lookAt(0, 0, 0);
+
+    if (setAsDefaultForScene) {
+      set({ camera: oCam });
+    }
+
+    return oCam;
+  });
+
+  return orthographicCamera;
+}
+
+function useOrbitControls(
+  targetCamera?: Camera,
+  enabled: boolean = true,
+  autoRotate: boolean = false
+) {
+  const { gl, camera } = useThree();
+
+  const [orbitControls] = useState<OrbitControls>(() => {
+    const orbitControls = new OrbitControls(
+      targetCamera ?? camera,
+      gl.domElement
+    );
+
+    // Set default target
+    orbitControls.target = new Vector3(0, 0, 0);
+
+    // Enable damping
+    orbitControls.enableDamping = true;
+    orbitControls.dampingFactor = 0.2;
+
+    // By default, OrbitControls zooms in and out by moving the camera
+    // closer and further away from the target. We do not want this.
+    // Instead, we will zoom by changing the window/scale of the graph,
+    // which requires a custom implementation.
+    orbitControls.enableZoom = false;
+    orbitControls.enablePan = false;
+
+    orbitControls.autoRotate = autoRotate;
+
+    orbitControls.enabled = enabled;
+
+    orbitControls.update();
+
+    return orbitControls;
+  });
+
+  useFrame(() => {
+    orbitControls.update();
+  });
+
+  return orbitControls;
 }
