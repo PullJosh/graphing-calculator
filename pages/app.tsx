@@ -1,20 +1,10 @@
-import {
-  Fragment,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { Fragment, useEffect, useState } from "react";
 import classNames from "classnames";
-import useSize from "@react-hook/size";
 import dynamic from "next/dynamic";
-import { Graph3D, Graph3DContext } from "../components/Graph3D/Graph3D";
+import { Graph3D } from "../components/Graph3D/Graph3D";
 import { GraphEquation3D } from "../components/Graph3D/GraphEquation3D";
-import { DoubleSide, Euler, Plane, ShaderMaterial, Vector3 } from "three";
 import { GraphEquation3DShader } from "../components/Graph3D/GraphEquation3DShader";
 import { GraphGrid3D } from "../components/Graph3D/GraphGrid3D";
-import { GraphSurface3D } from "../components/Graph3D/GraphSurface3D";
 import { GraphAxis3D } from "../components/Graph3D/GraphAxis3D";
 import { GraphBoundingBox3D } from "../components/Graph3D/GraphBoundingBox3D";
 import Link from "next/link";
@@ -209,7 +199,7 @@ function EquationInput({
 }: EquationInputProps) {
   return (
     <div className="relative flex border-b">
-      <div className="bg-gray-100 py-4 px-2">
+      <div className="bg-gray-100 p-2 flex items-center">
         <button
           onClick={() => setColor(color === "red" ? "blue" : "red")}
           className={classNames("block w-6 h-6 rounded-full", {
@@ -220,23 +210,22 @@ function EquationInput({
           <span className="sr-only">Change color</span>
         </button>
       </div>
-      <div className="block w-full flex-grow self-stretch focus-within:outline">
-        <MathLiveInput
-          latex={equation}
-          onChange={(latex) => {
-            setEquation(latex);
-          }}
-          options={{}}
-          className="px-3 py-2 outline-none"
-          style={
-            color === "red"
-              ? "--hue: 0; --selection-background-color-focused: rgb(220 38 38 / 0.2); --selection-color-focused: rgb(127 29 29 / 1);"
-              : color === "blue"
-              ? "--hue: 222; --selection-background-color-focused: rgb(37 99 235 / 0.2); --selection-color-focused: rgb(30 58 138 / 1);"
-              : undefined
-          }
-        />
-      </div>
+      <MathLiveInput
+        latex={equation}
+        onChange={(latex) => {
+          setEquation(latex);
+        }}
+        options={{}}
+        wrapperDivClassName="block w-full flex-grow self-center focus-within:outline"
+        className="px-3 py-4 outline-none"
+        style={
+          color === "red"
+            ? "--hue: 0; --selection-background-color-focused: rgb(220 38 38 / 0.2); --selection-color-focused: rgb(127 29 29 / 1);"
+            : color === "blue"
+            ? "--hue: 222; --selection-background-color-focused: rgb(37 99 235 / 0.2); --selection-color-focused: rgb(30 58 138 / 1);"
+            : undefined
+        }
+      />
       <button
         onClick={() => deleteSelf()}
         className="absolute top-0 right-0 w-5 h-5 rounded-bl bg-gray-200 flex items-center justify-center"
@@ -269,7 +258,7 @@ function ExpressionInput({
 
   return (
     <div className="relative flex border-b">
-      <div className="bg-gray-100 py-4 px-2">
+      <div className="bg-gray-100 p-2 flex items-center">
         <button
           onClick={() =>
             setColor(
@@ -304,25 +293,24 @@ function ExpressionInput({
           <span className="sr-only">Change color</span>
         </button>
       </div>
-      <div className="block w-full flex-grow self-stretch focus-within:outline">
-        <MathLiveInput
-          latex={expression}
-          onChange={(latex) => {
-            setExpression(latex);
-          }}
-          options={{}}
-          className="px-3 py-2 outline-none"
-          style={
-            color === "rainbow"
-              ? `--hue: ${rainbowHue}; --selection-background-color-focused: hsla(${rainbowHue}, 100%, 50%, 0.2); --selection-color-focused: hsl(${rainbowHue}, 100%, 25%);`
-              : color === "red"
-              ? "--hue: 0; --selection-background-color-focused: rgb(220 38 38 / 0.2); --selection-color-focused: rgb(127 29 29 / 1);"
-              : color === "blue"
-              ? "--hue: 222; --selection-background-color-focused: rgb(37 99 235 / 0.2); --selection-color-focused: rgb(30 58 138 / 1);"
-              : undefined
-          }
-        />
-      </div>
+      <MathLiveInput
+        latex={expression}
+        onChange={(latex) => {
+          setExpression(latex);
+        }}
+        options={{}}
+        wrapperDivClassName="block w-full flex-grow self-stretch focus-within:outline"
+        className="px-3 py-4 outline-none"
+        style={
+          color === "rainbow"
+            ? `--hue: ${rainbowHue}; --selection-background-color-focused: hsla(${rainbowHue}, 100%, 50%, 0.2); --selection-color-focused: hsl(${rainbowHue}, 100%, 25%);`
+            : color === "red"
+            ? "--hue: 0; --selection-background-color-focused: rgb(220 38 38 / 0.2); --selection-color-focused: rgb(127 29 29 / 1);"
+            : color === "blue"
+            ? "--hue: 222; --selection-background-color-focused: rgb(37 99 235 / 0.2); --selection-color-focused: rgb(30 58 138 / 1);"
+            : undefined
+        }
+      />
       <button
         onClick={() => deleteSelf()}
         className="absolute top-0 right-0 w-5 h-5 rounded-bl bg-gray-200 flex items-center justify-center"
