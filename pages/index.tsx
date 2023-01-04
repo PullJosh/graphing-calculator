@@ -10,6 +10,18 @@ export default function Index() {
 
   return (
     <div>
+      <div className="bg-yellow-200 py-4">
+        <div className="container mx-auto px-16">
+          <strong>👋 Hey there!</strong> Josh's Graphing Calculator is a{" "}
+          <strong className="text-indigo-700">work-in-progress</strong> tool
+          being created by me,{" "}
+          <Link href="https://joshuapullen.com/" className="underline">
+            Josh Pullen
+          </Link>
+          . Definitely look around and give things a poke, but expect broken and
+          weird behavior sometimes.
+        </div>
+      </div>
       <nav className="bg-gray-900">
         <div className="container mx-auto px-16">
           <div className="flex items-center py-3">
