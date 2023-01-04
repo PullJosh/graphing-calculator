@@ -1,4 +1,4 @@
-import { MeshProps } from "@react-three/fiber";
+import { MeshProps, useFrame } from "@react-three/fiber";
 import { ReactNode, RefObject, useEffect, useRef } from "react";
 import { Color, DoubleSide, ShaderMaterial } from "three";
 import { useClippingPlanes } from "../../hooks/useClippingPlanes";
@@ -26,6 +26,7 @@ export function GraphSurface3D({
   return (
     <mesh {...props}>
       {children}
+      {/* <meshBasicMaterial color={darkColors[color]} /> */}
       <GridMaterial
         lightColor={lightColors[color]}
         darkColor={darkColors[color]}
@@ -65,6 +66,7 @@ function GridMaterial({
 
   return (
     <shaderMaterial
+      attach="material"
       ref={ref}
       vertexShader={vertexShaderSource}
       fragmentShader={fragmentShaderSource}
@@ -81,13 +83,13 @@ function useApplyUniform(
   name: string,
   value: any
 ) {
-  useEffect(() => {
+  useFrame(() => {
     if (!(name in ref.current!.uniforms)) {
       ref.current!.uniforms[name] = { value: value };
     } else {
       ref.current!.uniforms[name].value = value;
     }
-  }, [ref, name, value]);
+  });
 }
 
 const vertexShaderSource = `

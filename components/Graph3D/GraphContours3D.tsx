@@ -90,6 +90,7 @@ export function GraphContours3D({ flatContours, color }: GraphContours3DProps) {
               }}
             />
             <lineMaterial
+              attach="material"
               color={color === "red" ? "rgb(220, 38, 38)" : "rgb(37, 99, 235)"}
               linewidth={lerp(
                 (dimension.from ?? dimension.value) === "3D" ? 0 : 3,
