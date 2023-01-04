@@ -1,6 +1,7 @@
 import {
   Component,
   createContext,
+  forwardRef,
   ReactNode,
   useCallback,
   useEffect,
@@ -25,7 +26,10 @@ import { useEffectOnce } from "usehooks-ts";
 
 type Graph3DProps = Graph3DInnerProps;
 
-export function Graph3D(props: Omit<Graph3DProps, "UITunnel">) {
+export const Graph3D = forwardRef<
+  HTMLCanvasElement,
+  Omit<Graph3DProps, "UITunnel">
+>(function Graph3D(props, ref) {
   const [uiTunnel] = useState(() => tunnel());
 
   return (
@@ -33,12 +37,12 @@ export function Graph3D(props: Omit<Graph3DProps, "UITunnel">) {
       <div className="absolute top-4 left-4 z-20">
         <uiTunnel.Out />
       </div>
-      <Canvas gl={{ localClippingEnabled: true }}>
+      <Canvas gl={{ localClippingEnabled: true }} ref={ref}>
         <Graph3DInner {...props} UITunnel={uiTunnel.In} />
       </Canvas>
     </>
   );
-}
+});
 
 export const Graph3DContext = createContext<ViewInfo>({
   dimension: { value: "3D" },

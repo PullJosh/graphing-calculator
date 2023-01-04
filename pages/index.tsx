@@ -80,17 +80,23 @@ export default function Index() {
 
       <div className="py-8">
         <div className="container mx-auto px-16">
-          <h2 className="font-serif font-bold text-2xl">Articles</h2>
-          <ul className="list-disc list-inside pl-4">
-            <li>
-              <Link
-                href="/articles/parabolas"
-                className="text-blue-700 underline"
-              >
-                Parabolas
-              </Link>
-            </li>
-          </ul>
+          <div className="prose">
+            <h2>Articles</h2>
+            <ul>
+              <li>
+                <Link href="/articles/parabolas">Parabolas</Link>
+              </li>
+            </ul>
+
+            <h2>Tools</h2>
+            <ul>
+              <li>
+                <Link href="/tools/expression-image-generator">
+                  Expression Image Generator
+                </Link>
+              </li>
+            </ul>
+          </div>
         </div>
       </div>
     </div>

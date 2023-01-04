@@ -43,26 +43,10 @@ export function GraphExpression3D({ expression }: GraphExpression3DProps) {
 
   const viewInfo = useContext(Graph3DContext);
   const window = viewInfo.window.value;
-  const windowWorldCoordinates = viewInfo.windowWorldCoordinates.value;
-
-  const scale = new Vector3(
-    window[1][0] === window[0][0]
-      ? 1
-      : (windowWorldCoordinates[1][0] - windowWorldCoordinates[0][0]) /
-        (window[1][0] - window[0][0]),
-    window[1][2] === window[0][2]
-      ? 1
-      : (windowWorldCoordinates[1][2] - windowWorldCoordinates[0][2]) /
-        (window[1][2] - window[0][2]),
-    window[1][1] === window[0][1]
-      ? 1
-      : (windowWorldCoordinates[1][1] - windowWorldCoordinates[0][1]) /
-        (window[1][1] - window[0][1])
-  );
+  const wwc = viewInfo.windowWorldCoordinates.value;
 
   return (
     <mesh
-      scale={scale}
       renderOrder={-1000}
       onUpdate={(self) => {
         self.rotation.x = -Math.PI / 2;
@@ -70,7 +54,7 @@ export function GraphExpression3D({ expression }: GraphExpression3DProps) {
     >
       <planeGeometry
         attach="geometry"
-        args={[window[1][0] - window[0][0], window[1][1] - window[0][1]]}
+        args={[wwc[1][0] - wwc[0][0], wwc[1][1] - wwc[0][1], 1, 1]}
       />
       <shaderMaterial
         ref={materialRef}
