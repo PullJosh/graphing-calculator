@@ -8,6 +8,7 @@ import { GraphGrid3D } from "../components/Graph3D/GraphGrid3D";
 import { GraphAxis3D } from "../components/Graph3D/GraphAxis3D";
 import { GraphBoundingBox3D } from "../components/Graph3D/GraphBoundingBox3D";
 import Link from "next/link";
+import { GraphExpression3D } from "../components/Graph3D/GraphExpression3D";
 
 const MathLiveInput = dynamic(
   () => import("../components/MathLiveInput").then((mod) => mod.MathLiveInput),
@@ -143,7 +144,7 @@ export default function Index() {
       </div>
       <div className="relative overflow-hidden">
         <Graph3D>
-          {({ dimension }) => {
+          {() => {
             return (
               <>
                 <GraphGrid3D normalAxis="z" />
@@ -154,8 +155,8 @@ export default function Index() {
                 {items.map((item) => (
                   <Fragment key={item.id}>
                     {item.type === "expression" && (
-                      // <GraphExpression3D expression={item.expression} />
-                      <GraphEquation3DShader expression={item.expression} />
+                      <GraphExpression3D expression={item.expression} />
+                      // <GraphEquation3DShader expression={item.expression} />
                     )}
                   </Fragment>
                 ))}

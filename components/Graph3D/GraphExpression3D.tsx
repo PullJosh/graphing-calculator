@@ -7,7 +7,9 @@ import {
   useState,
 } from "react";
 import { BoxedExpression, ComputeEngine } from "@cortex-js/compute-engine";
-import { DoubleSide, ShaderMaterial, Vector2 } from "three";
+import { DoubleSide, ShaderMaterial, Vector2, Vector3 } from "three";
+import { useClippingPlanes } from "../../hooks/useClippingPlanes";
+import { Graph3DContext } from "./Graph3D";
 const ce = new ComputeEngine();
 
 interface GraphExpression3DProps {
@@ -39,14 +41,37 @@ export function GraphExpression3D({ expression }: GraphExpression3DProps) {
     }
   }, [fragmentShaderSource]);
 
+  const viewInfo = useContext(Graph3DContext);
+  const window = viewInfo.window.value;
+  const windowWorldCoordinates = viewInfo.windowWorldCoordinates.value;
+
+  const scale = new Vector3(
+    window[1][0] === window[0][0]
+      ? 1
+      : (windowWorldCoordinates[1][0] - windowWorldCoordinates[0][0]) /
+        (window[1][0] - window[0][0]),
+    window[1][2] === window[0][2]
+      ? 1
+      : (windowWorldCoordinates[1][2] - windowWorldCoordinates[0][2]) /
+        (window[1][2] - window[0][2]),
+    window[1][1] === window[0][1]
+      ? 1
+      : (windowWorldCoordinates[1][1] - windowWorldCoordinates[0][1]) /
+        (window[1][1] - window[0][1])
+  );
+
   return (
     <mesh
+      scale={scale}
       renderOrder={-1000}
       onUpdate={(self) => {
         self.rotation.x = -Math.PI / 2;
       }}
     >
-      <planeGeometry attach="geometry" args={[100, 100]} />
+      <planeGeometry
+        attach="geometry"
+        args={[window[1][0] - window[0][0], window[1][1] - window[0][1]]}
+      />
       <shaderMaterial
         ref={materialRef}
         attach="material"
@@ -54,8 +79,8 @@ export function GraphExpression3D({ expression }: GraphExpression3DProps) {
         depthWrite={false}
         depthTest={false}
         uniforms={{
-          u_vmin: { value: new Vector2(-50, -50) },
-          u_vmax: { value: new Vector2(50, 50) },
+          u_vmin: { value: new Vector2(window[0][0], window[0][1]) },
+          u_vmax: { value: new Vector2(window[1][0], window[1][1]) },
         }}
         vertexShader={vertexShaderSource}
         // fragmentShader={fragmentShaderSource}
