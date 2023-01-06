@@ -2,14 +2,12 @@ use wasm_bindgen::prelude::*;
 
 use crate::equation::*;
 use crate::expression::*;
-use crate::log;
 use na::{OMatrix, U1, U2, U3};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use crate::point::*;
 use crate::segment::*;
-use crate::triangle::*;
 use crate::vector::*;
 
 #[wasm_bindgen]
@@ -81,7 +79,7 @@ pub fn graph_equation_2d(
     equation: &Equation,
     depth: i64,
     search_depth: i64,
-) -> Vec<Contour2D> {
+) -> Result<Vec<Contour2D>, String> {
     if let Some(var) = equation.left.as_any().downcast_ref::<Variable>() {
         if var.name == var1 {
             if equation.right.count_var_instances(var1) == 0 {
@@ -112,11 +110,24 @@ pub fn graph_equation_2d(
         Box::new(Minus::new(equation.right.clone())),
     ]);
 
+    let variables = expression.get_variables();
+    if variables.iter().any(|v| v != var1 && v != var2) {
+        return Err(format!(
+            "Cannot plot equation of variables [{}] on axes {} and {}",
+            variables
+                .iter()
+                .map(|x| x.to_owned() + ",")
+                .collect::<String>(),
+            var1,
+            var2
+        ));
+    }
+
     let f = |Point2D(x, y)| {
         let mut variables = HashMap::new();
         variables.insert(var1, x);
         variables.insert(var2, y);
-        expression.evaluate(&variables)
+        expression.evaluate(&variables).unwrap()
     };
 
     let dx = expression.derivative(var1).basic_simplify();
@@ -125,13 +136,16 @@ pub fn graph_equation_2d(
         let mut variables = HashMap::new();
         variables.insert(var1, x);
         variables.insert(var2, y);
-        Vec2D(dx.evaluate(&variables), dy.evaluate(&variables))
+        Vec2D(
+            dx.evaluate(&variables).unwrap(),
+            dy.evaluate(&variables).unwrap(),
+        )
     };
     let df = get_cheating_gradient(&df);
 
     let tree = build_tree(depth, search_depth, window, &f, &df, var1, var2);
 
-    get_contours_2d(&tree)
+    Ok(get_contours_2d(&tree))
 }
 
 pub fn graph_function_2d(
@@ -139,7 +153,7 @@ pub fn graph_function_2d(
     window: &GraphBox,
     expression: Box<dyn Expression>,
     flipped: bool,
-) -> Vec<Contour2D> {
+) -> Result<Vec<Contour2D>, String> {
     let mut contours = vec![];
     let mut contour: Contour2D = vec![];
 
@@ -164,7 +178,7 @@ pub fn graph_function_2d(
         let x = window.x_min + (window.x_max - window.x_min) * randomized_i / 500.0;
         variables.insert(var, x);
 
-        let y = expression.evaluate(&variables);
+        let y = expression.evaluate(&variables)?;
 
         if y.is_finite() {
             if flipped {
@@ -177,7 +191,7 @@ pub fn graph_function_2d(
 
     contours.push(contour);
 
-    contours
+    Ok(contours)
 }
 
 fn build_tree(

@@ -66,20 +66,19 @@ pub fn graph_equation(
     y_max: f64,
     depth: i64,
     search_depth: i64,
-) -> Vec<Contour2D> {
+) -> Result<Vec<Contour2D>, String> {
     console_error_panic_hook::set_once();
 
     let value: Value = serde_json::from_str(&math_json).unwrap();
 
     let equation = mathjson_value_to_equation(&value);
 
-    if equation.is_none() {
-        return Vec::new();
+    if let Some(equation) = equation {
+        let window = GraphBox::new(x_min, x_max, y_min, y_max);
+        return graph_equation_2d("x", "y", &window, &equation, depth, search_depth);
     }
 
-    let window = GraphBox::new(x_min, x_max, y_min, y_max);
-
-    graph_equation_2d("x", "y", &window, &equation.unwrap(), depth, search_depth)
+    return Err("Could not parse equation".to_string());
 }
 
 #[wasm_bindgen]
@@ -94,11 +93,11 @@ pub fn graph_equation_to_float_array(
     y_max: f64,
     depth: i64,
     search_depth: i64,
-) -> Vec<f64> {
+) -> Result<Vec<f64>, String> {
     console_error_panic_hook::set_once();
 
     let graphed_equation =
-        graph_equation(math_json, x_min, x_max, y_min, y_max, depth, search_depth);
+        graph_equation(math_json, x_min, x_max, y_min, y_max, depth, search_depth)?;
 
     let mut total_length = graphed_equation
         .iter()
@@ -114,7 +113,8 @@ pub fn graph_equation_to_float_array(
         float_array.push(std::f64::INFINITY);
         float_array.push(std::f64::INFINITY);
     }
-    float_array
+
+    Ok(float_array)
 }
 
 pub fn mathjson_value_to_equation(value: &Value) -> Option<Equation> {
@@ -161,6 +161,7 @@ fn mathjson_value_to_expression(value: &Value) -> Option<Box<dyn Expression>> {
         Value::String(s) => match s.as_str() {
             "Pi" => Some(Box::new(Constant::new(std::f64::consts::PI))),
             "ExponentialE" => Some(Box::new(Constant::new(std::f64::consts::E))),
+            "Nothing" => None,
             _ => Some(Box::new(Variable::new(s.to_string()))),
         },
         Value::Array(a) => {

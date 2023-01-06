@@ -3,14 +3,21 @@ use crate::equation::*;
 use num::rational::Ratio;
 use num::Integer;
 use std::any::Any;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 pub trait Expression: ASTNode + std::fmt::Display + std::fmt::Debug {
-    fn evaluate(&self, values: &HashMap<&str, f64>) -> f64;
+    fn evaluate(&self, values: &HashMap<&str, f64>) -> Result<f64, String>;
     fn derivative(&self, variable: &str) -> Box<dyn Expression>;
     fn get_real_domain(&self) -> Box<dyn Set>;
     fn basic_simplify(&self) -> Box<dyn Expression>;
     fn is_constant(&self) -> bool;
+    fn constant_value(&self) -> Option<f64> {
+        if self.is_constant() {
+            return Some(self.evaluate(&HashMap::new()).unwrap());
+        }
+        None
+    }
+    fn get_variables(&self) -> HashSet<String>;
     fn count_var_instances(&self, variable: &str) -> u64;
 
     fn clone_dyn(&self) -> Box<dyn Expression>;
@@ -33,8 +40,8 @@ impl Constant {
     }
 }
 impl Expression for Constant {
-    fn evaluate(&self, _values: &HashMap<&str, f64>) -> f64 {
-        self.value
+    fn evaluate(&self, _values: &HashMap<&str, f64>) -> Result<f64, String> {
+        Ok(self.value)
     }
     fn derivative(&self, _variable: &str) -> Box<dyn Expression> {
         Box::new(Constant::new(0.0))
@@ -47,6 +54,9 @@ impl Expression for Constant {
     }
     fn is_constant(&self) -> bool {
         true
+    }
+    fn get_variables(&self) -> HashSet<String> {
+        HashSet::new()
     }
     fn count_var_instances(&self, _variable: &str) -> u64 {
         0
@@ -80,8 +90,11 @@ impl Variable {
     }
 }
 impl Expression for Variable {
-    fn evaluate(&self, values: &HashMap<&str, f64>) -> f64 {
-        values.get(&self.name.as_str()).unwrap().clone()
+    fn evaluate(&self, values: &HashMap<&str, f64>) -> Result<f64, String> {
+        match values.get(&self.name.as_str()) {
+            Some(value) => return Ok(*value),
+            None => Err(format!("No value for variable {}", self.name)),
+        }
     }
     fn derivative(&self, variable: &str) -> Box<dyn Expression> {
         if self.name == variable {
@@ -98,6 +111,11 @@ impl Expression for Variable {
     }
     fn is_constant(&self) -> bool {
         false
+    }
+    fn get_variables(&self) -> HashSet<String> {
+        let mut set = HashSet::new();
+        set.insert(self.name.clone());
+        set
     }
     fn count_var_instances(&self, variable: &str) -> u64 {
         if self.name == variable {
@@ -135,7 +153,7 @@ impl Plus {
     }
 }
 impl Expression for Plus {
-    fn evaluate(&self, values: &HashMap<&str, f64>) -> f64 {
+    fn evaluate(&self, values: &HashMap<&str, f64>) -> Result<f64, String> {
         self.terms.iter().map(|term| term.evaluate(values)).sum()
     }
     fn derivative(&self, variable: &str) -> Box<dyn Expression> {
@@ -171,10 +189,9 @@ impl Expression for Plus {
         let mut constant = 0.0;
         for term in flattened_terms.iter() {
             let simplified = term.basic_simplify();
-            if simplified.is_constant() {
-                constant += simplified.evaluate(&HashMap::new());
-            } else {
-                terms.push(simplified);
+            match simplified.constant_value() {
+                Some(value) => constant += value,
+                None => terms.push(simplified),
             }
         }
         if constant != 0.0 {
@@ -190,6 +207,15 @@ impl Expression for Plus {
     }
     fn is_constant(&self) -> bool {
         self.terms.iter().all(|term| term.is_constant())
+    }
+    fn get_variables(&self) -> HashSet<String> {
+        self.terms
+            .iter()
+            .map(|term| term.get_variables())
+            .fold(HashSet::new(), |mut acc, set| {
+                acc.extend(set);
+                acc
+            })
     }
     fn count_var_instances(&self, variable: &str) -> u64 {
         self.terms
@@ -244,8 +270,8 @@ impl Minus {
     }
 }
 impl Expression for Minus {
-    fn evaluate(&self, values: &HashMap<&str, f64>) -> f64 {
-        -self.value.evaluate(values)
+    fn evaluate(&self, values: &HashMap<&str, f64>) -> Result<f64, String> {
+        Ok(-self.value.evaluate(values)?)
     }
     fn derivative(&self, variable: &str) -> Box<dyn Expression> {
         Box::new(Minus {
@@ -257,14 +283,16 @@ impl Expression for Minus {
     }
     fn basic_simplify(&self) -> Box<dyn Expression> {
         let simplified = self.value.basic_simplify();
-        if simplified.is_constant() {
-            Box::new(Constant::new(-simplified.evaluate(&HashMap::new())))
-        } else {
-            Box::new(Minus::new(simplified))
+        match simplified.constant_value() {
+            Some(value) => Box::new(Constant::new(-value)),
+            None => Box::new(Minus::new(simplified)),
         }
     }
     fn is_constant(&self) -> bool {
         self.value.is_constant()
+    }
+    fn get_variables(&self) -> HashSet<String> {
+        self.value.get_variables()
     }
     fn count_var_instances(&self, variable: &str) -> u64 {
         self.value.count_var_instances(variable)
@@ -298,7 +326,7 @@ impl Times {
     }
 }
 impl Expression for Times {
-    fn evaluate(&self, values: &HashMap<&str, f64>) -> f64 {
+    fn evaluate(&self, values: &HashMap<&str, f64>) -> Result<f64, String> {
         self.factors
             .iter()
             .map(|factor| factor.evaluate(values))
@@ -351,10 +379,9 @@ impl Expression for Times {
         let mut constant = 1.0;
         for factor in flattened_factors.iter() {
             let simplified = factor.basic_simplify();
-            if simplified.is_constant() {
-                constant *= simplified.evaluate(&HashMap::new());
-            } else {
-                factors.push(simplified);
+            match simplified.constant_value() {
+                Some(value) => constant *= value,
+                None => factors.push(simplified),
             }
         }
         if constant == 0.0 {
@@ -373,6 +400,12 @@ impl Expression for Times {
     }
     fn is_constant(&self) -> bool {
         self.factors.iter().all(|factor| factor.is_constant())
+    }
+    fn get_variables(&self) -> HashSet<String> {
+        self.factors
+            .iter()
+            .flat_map(|factor| factor.get_variables())
+            .collect()
     }
     fn count_var_instances(&self, variable: &str) -> u64 {
         self.factors
@@ -427,8 +460,8 @@ impl Inverse {
     }
 }
 impl Expression for Inverse {
-    fn evaluate(&self, values: &HashMap<&str, f64>) -> f64 {
-        1.0 / self.value.evaluate(values)
+    fn evaluate(&self, values: &HashMap<&str, f64>) -> Result<f64, String> {
+        Ok(1.0 / self.value.evaluate(values)?)
     }
     fn derivative(&self, variable: &str) -> Box<dyn Expression> {
         Box::new(Minus::new(Box::new(Times::new(vec![
@@ -451,14 +484,16 @@ impl Expression for Inverse {
     }
     fn basic_simplify(&self) -> Box<dyn Expression> {
         let simplified = self.value.basic_simplify();
-        if simplified.is_constant() {
-            Box::new(Constant::new(1.0 / simplified.evaluate(&HashMap::new())))
-        } else {
-            Box::new(Inverse::new(simplified))
+        match simplified.constant_value() {
+            Some(value) => Box::new(Constant::new(1.0 / value)),
+            None => Box::new(Inverse::new(simplified)),
         }
     }
     fn is_constant(&self) -> bool {
         self.value.is_constant()
+    }
+    fn get_variables(&self) -> HashSet<String> {
+        self.value.get_variables()
     }
     fn count_var_instances(&self, variable: &str) -> u64 {
         self.value.count_var_instances(variable)
@@ -493,10 +528,10 @@ impl Power {
     }
 }
 impl Expression for Power {
-    fn evaluate(&self, values: &HashMap<&str, f64>) -> f64 {
-        let base = self.base.evaluate(values);
-        let exponent = self.exponent.evaluate(values);
-        base.powf(exponent)
+    fn evaluate(&self, values: &HashMap<&str, f64>) -> Result<f64, String> {
+        let base = self.base.evaluate(values)?;
+        let exponent = self.exponent.evaluate(values)?;
+        Ok(base.powf(exponent))
     }
     fn derivative(&self, variable: &str) -> Box<dyn Expression> {
         // d/dx(f(x)^g(x)) = f(x)^(g(x) - 1) (g(x) f'(x) + f(x) log(f(x)) g'(x))
@@ -518,8 +553,7 @@ impl Expression for Power {
         ]))
     }
     fn get_real_domain(&self) -> Box<dyn Set> {
-        if self.exponent.is_constant() {
-            let exp_value = self.exponent.evaluate(&HashMap::new());
+        if let Some(exp_value) = self.exponent.constant_value() {
             let exp_ratio = Ratio::from_float(exp_value);
             if exp_ratio.unwrap().denom().is_even() {
                 // If the exponent has an even demonimator, then the base must be positive.
@@ -580,10 +614,9 @@ impl Expression for Power {
     fn basic_simplify(&self) -> Box<dyn Expression> {
         let base = self.base.basic_simplify();
         let exponent = self.exponent.basic_simplify();
-        if base.is_constant() && exponent.is_constant() {
-            Box::new(Constant::new(self.evaluate(&HashMap::new())))
-        } else if exponent.is_constant() {
-            let exponent = exponent.evaluate(&HashMap::new());
+        if let Some(value) = self.constant_value() {
+            Box::new(Constant::new(value))
+        } else if let Some(exponent) = exponent.constant_value() {
             if exponent == 0.0 {
                 Box::new(Constant::new(1.0))
             } else if exponent == 1.0 {
@@ -599,6 +632,11 @@ impl Expression for Power {
     }
     fn is_constant(&self) -> bool {
         self.base.is_constant() && self.exponent.is_constant()
+    }
+    fn get_variables(&self) -> HashSet<String> {
+        let mut variables = self.base.get_variables();
+        variables.extend(self.exponent.get_variables());
+        variables
     }
     fn count_var_instances(&self, variable: &str) -> u64 {
         self.base.count_var_instances(variable) + self.exponent.count_var_instances(variable)
@@ -633,10 +671,10 @@ impl Log {
     }
 }
 impl Expression for Log {
-    fn evaluate(&self, values: &HashMap<&str, f64>) -> f64 {
+    fn evaluate(&self, values: &HashMap<&str, f64>) -> Result<f64, String> {
         let base = self.base;
-        let value = self.value.evaluate(values);
-        value.log(base)
+        let value = self.value.evaluate(values)?;
+        Ok(value.log(base))
     }
     fn derivative(&self, variable: &str) -> Box<dyn Expression> {
         // d/dx(log(b, f(x))) = (f'(x))/(log(b) f(x))
@@ -674,14 +712,16 @@ impl Expression for Log {
     }
     fn basic_simplify(&self) -> Box<dyn Expression> {
         let value = self.value.basic_simplify();
-        if value.is_constant() {
-            Box::new(Constant::new(self.evaluate(&HashMap::new())))
-        } else {
-            Box::new(Log::new(self.base, value))
+        match self.constant_value() {
+            Some(value) => Box::new(Constant::new(value)),
+            None => Box::new(Log::new(self.base, value)),
         }
     }
     fn is_constant(&self) -> bool {
         self.value.is_constant()
+    }
+    fn get_variables(&self) -> HashSet<String> {
+        self.value.get_variables()
     }
     fn count_var_instances(&self, variable: &str) -> u64 {
         self.value.count_var_instances(variable)
@@ -715,9 +755,8 @@ impl Sin {
     }
 }
 impl Expression for Sin {
-    fn evaluate(&self, values: &HashMap<&str, f64>) -> f64 {
-        let value = self.value.evaluate(values);
-        value.sin()
+    fn evaluate(&self, values: &HashMap<&str, f64>) -> Result<f64, String> {
+        Ok(self.value.evaluate(values)?.sin())
     }
     fn derivative(&self, variable: &str) -> Box<dyn Expression> {
         // d/dx(sin(f(x))) = cos(f(x)) f'(x)
@@ -731,14 +770,16 @@ impl Expression for Sin {
     }
     fn basic_simplify(&self) -> Box<dyn Expression> {
         let value = self.value.basic_simplify();
-        if value.is_constant() {
-            Box::new(Constant::new(self.evaluate(&HashMap::new())))
-        } else {
-            Box::new(Sin::new(value))
+        match self.constant_value() {
+            Some(value) => Box::new(Constant::new(value)),
+            None => Box::new(Sin::new(value)),
         }
     }
     fn is_constant(&self) -> bool {
         self.value.is_constant()
+    }
+    fn get_variables(&self) -> HashSet<String> {
+        self.value.get_variables()
     }
     fn count_var_instances(&self, variable: &str) -> u64 {
         self.value.count_var_instances(variable)
@@ -772,9 +813,8 @@ impl Cos {
     }
 }
 impl Expression for Cos {
-    fn evaluate(&self, values: &HashMap<&str, f64>) -> f64 {
-        let value = self.value.evaluate(values);
-        value.cos()
+    fn evaluate(&self, values: &HashMap<&str, f64>) -> Result<f64, String> {
+        Ok(self.value.evaluate(values)?.cos())
     }
     fn derivative(&self, variable: &str) -> Box<dyn Expression> {
         // d/dx(cos(f(x))) = -sin(f(x)) f'(x)
@@ -788,14 +828,16 @@ impl Expression for Cos {
     }
     fn basic_simplify(&self) -> Box<dyn Expression> {
         let value = self.value.basic_simplify();
-        if value.is_constant() {
-            Box::new(Constant::new(self.evaluate(&HashMap::new())))
-        } else {
-            Box::new(Cos::new(value))
+        match self.constant_value() {
+            Some(value) => Box::new(Constant::new(value)),
+            None => Box::new(Cos::new(value)),
         }
     }
     fn is_constant(&self) -> bool {
         self.value.is_constant()
+    }
+    fn get_variables(&self) -> HashSet<String> {
+        self.value.get_variables()
     }
     fn count_var_instances(&self, variable: &str) -> u64 {
         self.value.count_var_instances(variable)
@@ -829,9 +871,8 @@ impl Tan {
     }
 }
 impl Expression for Tan {
-    fn evaluate(&self, values: &HashMap<&str, f64>) -> f64 {
-        let value = self.value.evaluate(values);
-        value.tan()
+    fn evaluate(&self, values: &HashMap<&str, f64>) -> Result<f64, String> {
+        Ok(self.value.evaluate(values)?.tan())
     }
     fn derivative(&self, variable: &str) -> Box<dyn Expression> {
         // d/dx(tan(f(x))) = sec^2(f(x)) f'(x)
@@ -848,14 +889,16 @@ impl Expression for Tan {
     }
     fn basic_simplify(&self) -> Box<dyn Expression> {
         let value = self.value.basic_simplify();
-        if value.is_constant() {
-            Box::new(Constant::new(self.evaluate(&HashMap::new())))
-        } else {
-            Box::new(Tan::new(value))
+        match self.constant_value() {
+            Some(value) => Box::new(Constant::new(value)),
+            None => Box::new(Tan::new(value)),
         }
     }
     fn is_constant(&self) -> bool {
         self.value.is_constant()
+    }
+    fn get_variables(&self) -> HashSet<String> {
+        self.value.get_variables()
     }
     fn count_var_instances(&self, variable: &str) -> u64 {
         self.value.count_var_instances(variable)
@@ -889,9 +932,8 @@ impl Abs {
     }
 }
 impl Expression for Abs {
-    fn evaluate(&self, values: &HashMap<&str, f64>) -> f64 {
-        let value = self.value.evaluate(values);
-        value.abs()
+    fn evaluate(&self, values: &HashMap<&str, f64>) -> Result<f64, String> {
+        Ok(self.value.evaluate(values)?.abs())
     }
     fn derivative(&self, variable: &str) -> Box<dyn Expression> {
         // d/dx(abs(f(x))) = f(x) / abs(f(x)) * f'(x)
@@ -906,14 +948,16 @@ impl Expression for Abs {
     }
     fn basic_simplify(&self) -> Box<dyn Expression> {
         let value = self.value.basic_simplify();
-        if value.is_constant() {
-            Box::new(Constant::new(self.evaluate(&HashMap::new())))
-        } else {
-            Box::new(Abs::new(value))
+        match self.constant_value() {
+            Some(value) => Box::new(Constant::new(value)),
+            None => Box::new(Abs::new(value)),
         }
     }
     fn is_constant(&self) -> bool {
         self.value.is_constant()
+    }
+    fn get_variables(&self) -> HashSet<String> {
+        self.value.get_variables()
     }
     fn count_var_instances(&self, variable: &str) -> u64 {
         self.value.count_var_instances(variable)

@@ -4,14 +4,6 @@ use joshs_graphing_calculator_lib::{
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
-fn fibonacci(n: u64) -> u64 {
-    match n {
-        0 => 1,
-        1 => 1,
-        n => fibonacci(n - 1) + fibonacci(n - 2),
-    }
-}
-
 fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("mathjson to equation", |b| {
         b.iter(|| {
@@ -40,9 +32,10 @@ fn criterion_benchmark(c: &mut Criterion) {
         b.iter(|| {
             black_box(graph_equation(
                 "[\"Equal\", \"y\", [\"Power\", \"x\", 2]]".to_string(),
-                0,
-                0,
-                0,
+                -5.0,
+                5.0,
+                -5.0,
+                5.0,
                 7,
                 3,
             ))

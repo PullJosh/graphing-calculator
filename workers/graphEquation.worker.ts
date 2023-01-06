@@ -1,4 +1,4 @@
-import { graph_equation_to_float_array as graphEquationToFloatArray } from "joshs_graphing_calculator_lib";
+import { graph_equation_to_float_array as graphEquationToFloatArray } from "../rust/joshs_graphing_calculator_lib/pkg/joshs_graphing_calculator_lib";
 
 import { expose } from "comlink";
 

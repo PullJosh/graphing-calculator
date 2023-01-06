@@ -211,8 +211,7 @@ impl Set for Equation {
         ])
         .basic_simplify();
 
-        if diff.is_constant() {
-            let diff_value = diff.evaluate(&HashMap::new());
+        if let Some(diff_value) = diff.constant_value() {
             let result = match self.operator {
                 ComparisonOperator::LessThan => diff_value < 0.0,
                 ComparisonOperator::LessThanOrEqual => diff_value <= 0.0,
