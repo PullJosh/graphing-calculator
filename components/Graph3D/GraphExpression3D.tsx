@@ -260,6 +260,8 @@ const nodeToGL = (node: BoxedExpression["json"]): string => {
         return `min(${args.join(", ")})`;
       case "Rational":
         return `(${args[0]} / ${args[1] ?? "1.0"})`;
+      case "Delimiter":
+        return `(${args[0]})`;
     }
 
     throw new Error(`Unsupported function: ${name}`);
