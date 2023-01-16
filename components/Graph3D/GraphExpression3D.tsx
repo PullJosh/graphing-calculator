@@ -206,13 +206,13 @@ const nodeToGL = (node: BoxedExpression["json"]): string => {
         return `1.0 / cos(${args[0]})`;
       case "Csc":
         return `1.0 / sin(${args[0]})`;
-      case "ArcSin":
+      case "Arcsin":
         return `asin(${args[0]})`;
-      case "ArcCos":
+      case "Arccos":
         return `acos(${args[0]})`;
-      case "ArcTan":
+      case "Arctan":
         return `atan(${args[0]})`;
-      case "ArcTan2":
+      case "Arctan2":
         return `atan(${args[0]}, ${args[1]})`;
       case "Acot":
         return `atan(1.0, ${args[0]})`;
