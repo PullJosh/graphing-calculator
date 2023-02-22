@@ -3,12 +3,14 @@ import classNames from "classnames";
 import dynamic from "next/dynamic";
 import { Graph3D } from "../components/Graph3D/Graph3D";
 import { GraphEquation3D } from "../components/Graph3D/GraphEquation3D";
-import { GraphEquation3DShader } from "../components/Graph3D/GraphEquation3DShader";
 import { GraphGrid3D } from "../components/Graph3D/GraphGrid3D";
 import { GraphAxis3D } from "../components/Graph3D/GraphAxis3D";
 import { GraphBoundingBox3D } from "../components/Graph3D/GraphBoundingBox3D";
 import Link from "next/link";
 import { GraphExpression3D } from "../components/Graph3D/GraphExpression3D";
+import { Shape, Vector2 } from "three";
+import { Area } from "../components/Graph3D/display/Area";
+import { Axis } from "../types";
 
 const MathLiveInput = dynamic(
   () => import("../components/MathLiveInput").then((mod) => mod.MathLiveInput),
@@ -29,20 +31,44 @@ type Item =
 
 type ItemWithId = { id: number } & Item;
 
+const shape = new Shape([
+  new Vector2(0, 0),
+  new Vector2(3, 0),
+  new Vector2(3, 1),
+  new Vector2(1, 1),
+  new Vector2(1, 2),
+  new Vector2(0, 2),
+]);
+shape.autoClose = true;
+
+const sliceShape = new Shape([
+  new Vector2(-5, -5),
+  new Vector2(-5, 5),
+  new Vector2(5, 5),
+  new Vector2(5, -5),
+]);
+sliceShape.autoClose = true;
+
 export default function Index() {
   const [items, setItems] = useState<ItemWithId[]>([
     {
       id: 0,
       type: "equation",
-      equation: "y=x^2",
+      equation: "z=x^2+y^2",
       color: "red",
     },
-    {
-      id: 1,
-      type: "equation",
-      equation: "x^2+y^2=9",
-      color: "blue",
-    },
+    // {
+    //   id: 0,
+    //   type: "equation",
+    //   equation: "y=x^2",
+    //   color: "red",
+    // },
+    // {
+    //   id: 1,
+    //   type: "equation",
+    //   equation: "x^2+y^2=9",
+    //   color: "blue",
+    // },
     // { id: 2, type: "expression", expression: "x^2+y^2", color: "rainbow" },
   ]);
 
@@ -75,6 +101,11 @@ export default function Index() {
   const deleteItem = (index: number) => {
     setItems((items) => [...items.slice(0, index), ...items.slice(index + 1)]);
   };
+
+  const [variables, setVariables] = useState<[string, number][]>([]);
+  const [slices, setSlices] = useState<
+    { id: number; axisVar: string; value: number }[]
+  >([{ id: 0, axisVar: "z", value: 0 }]);
 
   return (
     <div className="grid grid-cols-[300px,1fr] grid-rows-[auto,1fr] w-screen h-screen">
@@ -141,6 +172,73 @@ export default function Index() {
             Add expression
           </button>
         </div>
+        <div className="mt-auto space-y-1">
+          {variables.map(([name, value], index) => (
+            <div key={name} className="flex items-center space-x-2 px-2">
+              <span>{name}:</span>
+              <input
+                className="flex-grow"
+                type="range"
+                min={-5}
+                max={5}
+                step={0.001}
+                value={value}
+                onChange={(event) => {
+                  const newValue = event.target.valueAsNumber;
+                  setVariables((variables) => {
+                    const newVariables = [...variables];
+                    newVariables[index][1] = newValue;
+                    return newVariables;
+                  });
+                }}
+              />
+              <span className="w-12">{value}</span>
+              <button
+                className="bg-gray-100 border rounded px-1 py-px text-sm"
+                onClick={() => {
+                  setVariables((variables) => {
+                    const newVariables = [...variables];
+                    newVariables.splice(index, 1);
+                    return newVariables;
+                  });
+                }}
+              >
+                Delete
+              </button>
+            </div>
+          ))}
+          <div className="flex justify-center space-x-2 p-2">
+            <button
+              onClick={() => {
+                const newName = prompt("Variable letter?");
+                if (newName && !variables.some(([name]) => name === newName)) {
+                  setVariables((variables) => [...variables, [newName, 0]]);
+                }
+              }}
+              className="bg-gray-100 border px-2 py-1 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Add slider
+            </button>
+            <button
+              onClick={() => {
+                const axisVar = prompt("Slice axis (x/y/z)?");
+                if (axisVar) {
+                  setSlices((slices) => [
+                    ...slices,
+                    {
+                      id: Math.max(-1, ...slices.map((slice) => slice.id)) + 1,
+                      axisVar,
+                      value: 0,
+                    },
+                  ]);
+                }
+              }}
+              className="bg-gray-100 border px-2 py-1 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Add slice
+            </button>
+          </div>
+        </div>
       </div>
       <div className="relative overflow-hidden">
         <Graph3D>
@@ -155,7 +253,10 @@ export default function Index() {
                 {items.map((item) => (
                   <Fragment key={item.id}>
                     {item.type === "expression" && (
-                      <GraphExpression3D expression={item.expression} />
+                      <GraphExpression3D
+                        expression={item.expression}
+                        varValues={Object.fromEntries(variables)}
+                      />
                       // <GraphEquation3DShader expression={item.expression} />
                     )}
                   </Fragment>
@@ -166,14 +267,135 @@ export default function Index() {
                       <GraphEquation3D
                         equation={item.equation}
                         color={item.color}
+                        varValues={Object.fromEntries(variables)}
                       />
                     )}
                   </Fragment>
+                ))}
+                {slices.map((slice) => (
+                  <Area
+                    key={slice.id}
+                    shape={sliceShape}
+                    color="black"
+                    axes={
+                      ["x", "y", "z"].filter(
+                        (axis) => axis !== slice.axisVar
+                      ) as [Axis, Axis]
+                    }
+                    normalAxisPosition={slice.value}
+                  />
                 ))}
               </>
             );
           }}
         </Graph3D>
+
+        {slices.length > 0 && (
+          <div className="absolute bottom-0 right-0 flex space-x-4 p-4">
+            {slices.map(({ id, axisVar, value }) => (
+              <div
+                key={id}
+                className="bg-gray-900 p-2 space-y-2 rounded-xl relative"
+              >
+                <div className="relative w-48 h-48 bg-white rounded overflow-hidden">
+                  <button
+                    className="bg-gray-800 text-white absolute top-1 right-1 z-10 rounded w-6 h-6 flex items-center justify-center"
+                    onClick={() => {
+                      setSlices((slices) =>
+                        slices.filter((slice) => slice.id !== id)
+                      );
+                    }}
+                  >
+                    X
+                  </button>
+                  <Graph3D defaultDimension="2D" showControls={false}>
+                    {() => {
+                      const axes = (["x", "y", "z"] as Axis[]).filter(
+                        (axis) => axis !== axisVar
+                      );
+
+                      return (
+                        <>
+                          <GraphAxis3D axis="x" label={axes[0]} />
+                          <GraphAxis3D axis="y" label={axes[1]} />
+                          <GraphGrid3D />
+                          {items.map((item) => (
+                            <Fragment key={item.id}>
+                              {item.type === "equation" && (
+                                <GraphEquation3D
+                                  axes={axes}
+                                  equation={item.equation}
+                                  color={item.color}
+                                  varValues={{
+                                    ...Object.fromEntries(variables),
+                                    [axisVar]: value,
+                                  }}
+                                />
+                              )}
+                            </Fragment>
+                          ))}
+                        </>
+                      );
+                    }}
+                  </Graph3D>
+                </div>
+                <div
+                  className="text-white flex text-2xl px-2"
+                  style={{ fontFamily: "CMU Serif" }}
+                >
+                  <select
+                    className="italic bg-transparent pr-2"
+                    value={axisVar}
+                    onChange={(event) =>
+                      setSlices((slices) =>
+                        slices.map((slice) =>
+                          slice.id === id
+                            ? { ...slice, axisVar: event.target.value }
+                            : slice
+                        )
+                      )
+                    }
+                  >
+                    <option value="x">x</option>
+                    <option value="y">y</option>
+                    <option value="z">z</option>
+                  </select>
+                  <span className="mx-2"> = </span>
+                  <input
+                    className="bg-transparent flex-grow flex-shrink w-0"
+                    type="number"
+                    value={value}
+                    onChange={(event) =>
+                      setSlices((slices) =>
+                        slices.map((slice) =>
+                          slice.id === id
+                            ? { ...slice, value: event.target.valueAsNumber }
+                            : slice
+                        )
+                      )
+                    }
+                  />
+                </div>
+                {/* <input
+                  type="range"
+                  min={-5}
+                  max={5}
+                  step={1}
+                  value={value}
+                  onChange={(event) =>
+                    setSlices((slices) =>
+                      slices.map((slice) =>
+                        slice.id === id
+                          ? { ...slice, value: event.target.valueAsNumber }
+                          : slice
+                      )
+                    )
+                  }
+                /> */}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -217,7 +439,7 @@ function EquationInput({
           setEquation(latex);
         }}
         options={{}}
-        wrapperDivClassName="block w-full flex-grow self-center focus-within:outline"
+        wrapperDivClassName="block text-2xl w-full flex-grow self-center focus-within:outline"
         className="px-3 py-4 outline-none"
         style={
           color === "red"
@@ -300,7 +522,7 @@ function ExpressionInput({
           setExpression(latex);
         }}
         options={{}}
-        wrapperDivClassName="block w-full flex-grow self-stretch focus-within:outline"
+        wrapperDivClassName="block text-2xl w-full flex-grow self-stretch focus-within:outline"
         className="px-3 py-4 outline-none"
         style={
           color === "rainbow"

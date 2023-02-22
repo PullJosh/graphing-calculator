@@ -3,14 +3,16 @@ import { Graph3DContext } from "./Graph3D";
 import { GraphGridLine3D } from "./GraphGridLine3D";
 
 interface GraphGrid3DProps {
-  normalAxis: "x" | "y" | "z";
+  normalAxis?: "x" | "y" | "z";
 }
 
-export function GraphGrid3D({ normalAxis }: GraphGrid3DProps) {
+export function GraphGrid3D({ normalAxis = "z" }: GraphGrid3DProps) {
   const viewInfo = useContext(Graph3DContext);
   const window = viewInfo.window.value;
 
   const scale = 1;
+
+  const { axisComponentCounts } = useContext(Graph3DContext);
 
   const gridXValues = useMemo(() => {
     let gridXValues = new Set<number>();
@@ -23,8 +25,11 @@ export function GraphGrid3D({ normalAxis }: GraphGrid3DProps) {
       gridXValues.add(x);
     }
     gridXValues.add(window[1][0]);
+    if (axisComponentCounts.y > 0 || axisComponentCounts.z > 0) {
+      gridXValues.delete(0);
+    }
     return [...gridXValues];
-  }, [window]);
+  }, [window, axisComponentCounts]);
 
   const gridYValues = useMemo(() => {
     let gridYValues = new Set<number>();
@@ -37,8 +42,11 @@ export function GraphGrid3D({ normalAxis }: GraphGrid3DProps) {
       gridYValues.add(y);
     }
     gridYValues.add(window[1][1]);
+    if (axisComponentCounts.x > 0 || axisComponentCounts.z > 0) {
+      gridYValues.delete(0);
+    }
     return [...gridYValues];
-  }, [window]);
+  }, [window, axisComponentCounts]);
 
   const gridZValues = useMemo(() => {
     let gridZValues = new Set<number>();
@@ -51,8 +59,11 @@ export function GraphGrid3D({ normalAxis }: GraphGrid3DProps) {
       gridZValues.add(z);
     }
     gridZValues.add(window[1][2]);
+    if (axisComponentCounts.x > 0 || axisComponentCounts.y > 0) {
+      gridZValues.delete(0);
+    }
     return [...gridZValues];
-  }, [window]);
+  }, [window, axisComponentCounts]);
 
   if (normalAxis === "x") {
     return (

@@ -2,7 +2,7 @@ import { useEffect, useReducer, useState } from "react";
 import { Euler, Vector3 } from "three";
 import { Graph3D } from "../components/Graph3D/Graph3D";
 import { GraphBoundingBox3D } from "../components/Graph3D/GraphBoundingBox3D";
-import { GraphSurface3D } from "../components/Graph3D/GraphSurface3D";
+import { GraphSurfaceGridMaterial } from "../components/Graph3D/GraphSurfaceGridMaterial";
 import Link from "next/link";
 
 export default function Index() {
@@ -66,15 +66,14 @@ export default function Index() {
               {() => (
                 <>
                   <GraphBoundingBox3D />
-                  <GraphSurface3D
-                    color="blue"
+                  <mesh
                     scale={new Vector3(0.2, 0.2, 0.2)}
                     rotation={new Euler((time / 1000 / 10) * Math.PI, 0, 0)}
                   >
                     <planeGeometry attach="geometry" args={[15, 15, 1, 1]} />
-                  </GraphSurface3D>
-                  <GraphSurface3D
-                    color="red"
+                    <GraphSurfaceGridMaterial color="blue" />
+                  </mesh>
+                  <mesh
                     scale={new Vector3(0.2, 0.2, 0.2)}
                     position={new Vector3(0, 0, 0)}
                   >
@@ -82,7 +81,8 @@ export default function Index() {
                       attach="geometry"
                       args={[5, 10, 64, 1, true]}
                     />
-                  </GraphSurface3D>
+                    <GraphSurfaceGridMaterial color="red" />
+                  </mesh>
                 </>
               )}
             </Graph3D>
@@ -97,6 +97,9 @@ export default function Index() {
             <ul>
               <li>
                 <Link href="/articles/parabolas">Parabolas</Link>
+              </li>
+              <li>
+                <Link href="/articles/riemann-sums">Riemann Sums</Link>
               </li>
             </ul>
 

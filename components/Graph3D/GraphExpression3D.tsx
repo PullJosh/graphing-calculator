@@ -1,27 +1,24 @@
-import {
-  useContext,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useContext, useEffect, useMemo, useRef } from "react";
 import { BoxedExpression, ComputeEngine } from "@cortex-js/compute-engine";
-import { DoubleSide, ShaderMaterial, Vector2, Vector3 } from "three";
-import { useClippingPlanes } from "../../hooks/useClippingPlanes";
+import { DoubleSide, ShaderMaterial, Vector2 } from "three";
 import { Graph3DContext } from "./Graph3D";
+import { useApplyUniforms } from "../../hooks/useApplyUniforms";
 const ce = new ComputeEngine();
 
 interface GraphExpression3DProps {
   expression: string;
+  varValues?: Record<string, number>;
 }
 
-export function GraphExpression3D({ expression }: GraphExpression3DProps) {
+export function GraphExpression3D({
+  expression,
+  varValues = {},
+}: GraphExpression3DProps) {
   const mathJSON = useMemo(() => ce.parse(expression), [expression]);
 
   const fragmentShaderSource = useMemo(() => {
     try {
-      return getFragmentShaderSource(mathJSON);
+      return getFragmentShaderSource(mathJSON, varValues);
     } catch (err) {
       if (!(err instanceof ExpressionError)) {
         console.error(err);
@@ -29,7 +26,7 @@ export function GraphExpression3D({ expression }: GraphExpression3DProps) {
 
       return null;
     }
-  }, [mathJSON]);
+  }, [mathJSON, varValues]);
 
   const materialRef = useRef<ShaderMaterial>(null);
   useEffect(() => {
@@ -44,6 +41,12 @@ export function GraphExpression3D({ expression }: GraphExpression3DProps) {
   const viewInfo = useContext(Graph3DContext);
   const window = viewInfo.window.value;
   const wwc = viewInfo.windowWorldCoordinates.value;
+
+  useApplyUniforms(materialRef, {
+    ...varValues,
+    u_vmin: new Vector2(window[0][0], window[0][1]),
+    u_vmax: new Vector2(window[1][0], window[1][1]),
+  });
 
   return (
     <mesh
@@ -62,10 +65,13 @@ export function GraphExpression3D({ expression }: GraphExpression3DProps) {
         visible={!!fragmentShaderSource}
         depthWrite={false}
         depthTest={false}
-        uniforms={{
-          u_vmin: { value: new Vector2(window[0][0], window[0][1]) },
-          u_vmax: { value: new Vector2(window[1][0], window[1][1]) },
-        }}
+        // uniforms={{
+        //   u_vmin: { value: new Vector2(window[0][0], window[0][1]) },
+        //   u_vmax: { value: new Vector2(window[1][0], window[1][1]) },
+        //   ...Object.fromEntries(
+        //     Object.entries(varValues).map(([name, value]) => [name, { value }])
+        //   ),
+        // }}
         vertexShader={vertexShaderSource}
         // fragmentShader={fragmentShaderSource}
         side={DoubleSide}
@@ -90,11 +96,17 @@ class ExpressionError extends Error {
   }
 }
 
-const getFragmentShaderSource = (expression: BoxedExpression) => `
+const getFragmentShaderSource = (
+  expression: BoxedExpression,
+  varValues: Record<string, number>
+) => `
   varying vec2 vUv;
 
   uniform vec2 u_vmin;
   uniform vec2 u_vmax;
+  ${Object.entries(varValues)
+    .map(([name, value]) => `uniform float ${name};`)
+    .join("\n")}
 
   vec3 hsv2rgb(vec3 c) {
     vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
@@ -131,6 +143,9 @@ const nodeToGL = (node: BoxedExpression["json"]): string => {
       case "Pi":
         return Math.PI.toPrecision(21);
       default:
+        if (symbol.length === 1) {
+          return symbol; // Variable (use uniform value)
+        }
         throw new Error(`Unsupported symbol: ${node}`);
     }
   };

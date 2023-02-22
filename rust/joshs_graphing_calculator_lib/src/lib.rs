@@ -1,3 +1,6 @@
+use std::collections::HashMap;
+
+use triangle::Triangle3D;
 use wasm_bindgen::prelude::*;
 extern crate console_error_panic_hook;
 
@@ -60,22 +63,34 @@ pub fn main() {
 
 pub fn graph_equation(
     math_json: String,
+    var1: &String, // Variable to use as "x" axis
+    var2: &String, // Variable to use as "y" axis
     x_min: f64,
     x_max: f64,
     y_min: f64,
     y_max: f64,
     depth: i64,
     search_depth: i64,
+    var_values: JsValue, // HashMap<String, f64>,
 ) -> Result<Vec<Contour2D>, String> {
     console_error_panic_hook::set_once();
 
     let value: Value = serde_json::from_str(&math_json).unwrap();
-
     let equation = mathjson_value_to_equation(&value);
+
+    let var_values: HashMap<String, f64> = serde_wasm_bindgen::from_value(var_values).unwrap();
 
     if let Some(equation) = equation {
         let window = GraphBox::new(x_min, x_max, y_min, y_max);
-        return graph_equation_2d("x", "y", &window, &equation, depth, search_depth);
+        return graph_equation_2d(
+            var1,
+            var2,
+            &window,
+            &equation,
+            depth,
+            search_depth,
+            &var_values,
+        );
     }
 
     return Err("Could not parse equation".to_string());
@@ -84,20 +99,30 @@ pub fn graph_equation(
 #[wasm_bindgen]
 pub fn graph_equation_to_float_array(
     math_json: String,
-    // scale: i64,
-    // x: i64,
-    // y: i64,
+    var1: String,
+    var2: String,
     x_min: f64,
     x_max: f64,
     y_min: f64,
     y_max: f64,
     depth: i64,
     search_depth: i64,
+    var_values: JsValue, // HashMap<String, f64>,
 ) -> Result<Vec<f64>, String> {
     console_error_panic_hook::set_once();
 
-    let graphed_equation =
-        graph_equation(math_json, x_min, x_max, y_min, y_max, depth, search_depth)?;
+    let graphed_equation = graph_equation(
+        math_json,
+        &var1,
+        &var2,
+        x_min,
+        x_max,
+        y_min,
+        y_max,
+        depth,
+        search_depth,
+        var_values,
+    )?;
 
     let mut total_length = graphed_equation
         .iter()
@@ -112,6 +137,69 @@ pub fn graph_equation_to_float_array(
         }
         float_array.push(std::f64::INFINITY);
         float_array.push(std::f64::INFINITY);
+    }
+
+    Ok(float_array)
+}
+
+pub fn graph_equation_3d(
+    math_json: String,
+    var1: &String, // Variable to use as "x" axis
+    var2: &String, // Variable to use as "y" axis
+    var3: &String, // Variable to use as "z" axis
+    x_min: f64,
+    x_max: f64,
+    y_min: f64,
+    y_max: f64,
+    z_min: f64,
+    z_max: f64,
+    var_values: JsValue, // HashMap<String, f64>,
+) -> Result<Vec<Triangle3D>, String> {
+    console_error_panic_hook::set_once();
+
+    let var_values: HashMap<String, f64> = serde_wasm_bindgen::from_value(var_values).unwrap();
+
+    let value: Value = serde_json::from_str(&math_json).unwrap();
+
+    let equation = mathjson_value_to_equation(&value);
+
+    if let Some(equation) = equation {
+        let window = GraphBox3D::new(x_min, x_max, y_min, y_max, z_min, z_max);
+        return graphing::graph_equation_3d(var1, var2, var3, &window, &equation, &var_values);
+    }
+
+    Err("Could not parse equation".to_string())
+}
+
+#[wasm_bindgen]
+pub fn graph_equation_to_float_array_3d(
+    math_json: String,
+    var1: String,
+    var2: String,
+    var3: String,
+    x_min: f64,
+    x_max: f64,
+    y_min: f64,
+    y_max: f64,
+    z_min: f64,
+    z_max: f64,
+    var_values: JsValue, // HashMap<String, f64>,
+) -> Result<Vec<f64>, String> {
+    console_error_panic_hook::set_once();
+
+    let graphed_equation = graph_equation_3d(
+        math_json, &var1, &var2, &var3, x_min, x_max, y_min, y_max, z_min, z_max, var_values,
+    )?;
+
+    let total_length = graphed_equation.len() * 3 * 3;
+
+    let mut float_array = Vec::with_capacity(total_length);
+    for triangle in graphed_equation {
+        for point in triangle {
+            float_array.push(point.0);
+            float_array.push(point.1);
+            float_array.push(point.2);
+        }
     }
 
     Ok(float_array)
@@ -196,6 +284,10 @@ fn mathjson_value_to_expression(value: &Value) -> Option<Box<dyn Expression>> {
                 "Cos" => Some(Box::new(Cos::new(operands[0].clone()))),
                 "Tan" => Some(Box::new(Tan::new(operands[0].clone()))),
                 "Abs" => Some(Box::new(Abs::new(operands[0].clone()))),
+                "Sqrt" => Some(Box::new(Power::new(
+                    operands[0].clone(),
+                    Box::new(Constant::new(0.5)),
+                ))),
                 "Delimiter" => Some(operands[0].clone()),
                 "Rational" => Some(Box::new(Times::new(vec![
                     operands[0].clone(),

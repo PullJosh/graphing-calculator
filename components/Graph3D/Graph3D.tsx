@@ -1,17 +1,19 @@
 import {
-  Component,
   createContext,
+  Dispatch,
   forwardRef,
   ReactNode,
+  SetStateAction,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { GizmoHelper, GizmoViewcube, GizmoViewport } from "@react-three/drei";
 import {
   Camera,
+  CubeTextureLoader,
   Object3D,
   OrthographicCamera,
   PerspectiveCamera,
@@ -24,27 +26,41 @@ import classNames from "classnames";
 import { lerp, lerpQuaternion, lerpVec3, lerpWindow } from "../../utils/lerp";
 import { useEffectOnce } from "usehooks-ts";
 
-type Graph3DProps = Graph3DInnerProps;
+type Graph3DProps = Omit<Graph3DInnerProps, "UITunnel">;
 
-export const Graph3D = forwardRef<
-  HTMLCanvasElement,
-  Omit<Graph3DProps, "UITunnel">
->(function Graph3D(props, ref) {
-  const [uiTunnel] = useState(() => tunnel());
+export const Graph3D = forwardRef<HTMLCanvasElement, Graph3DProps>(
+  function Graph3D(props, ref) {
+    const [uiTunnel] = useState(() => tunnel());
 
-  return (
-    <>
-      <div className="absolute top-4 left-4 z-20">
-        <uiTunnel.Out />
-      </div>
-      <Canvas gl={{ localClippingEnabled: true }} ref={ref}>
-        <Graph3DInner {...props} UITunnel={uiTunnel.In} />
-      </Canvas>
-    </>
-  );
-});
+    return (
+      <>
+        <div className="absolute top-4 left-4 z-20">
+          <uiTunnel.Out />
+        </div>
+        <Canvas gl={{ localClippingEnabled: true }} ref={ref}>
+          <Graph3DInner {...props} UITunnel={uiTunnel.In} />
+        </Canvas>
+      </>
+    );
+  }
+);
 
-export const Graph3DContext = createContext<ViewInfo>({
+type Graph3DContextType = ViewInfo & {
+  axisComponentCounts: {
+    x: number;
+    y: number;
+    z: number;
+  };
+  setAxisComponentCounts: Dispatch<
+    SetStateAction<{
+      x: number;
+      y: number;
+      z: number;
+    }>
+  >;
+};
+
+export const Graph3DContext = createContext<Graph3DContextType>({
   dimension: { value: "3D" },
   setDimension: () => {},
   cameraType: { value: "perspective" },
@@ -64,6 +80,8 @@ export const Graph3DContext = createContext<ViewInfo>({
   toSceneX: () => 0,
   toSceneY: () => 0,
   toSceneZ: () => 0,
+  axisComponentCounts: { x: 0, y: 0, z: 0 },
+  setAxisComponentCounts: () => {},
 });
 
 interface Graph3DInnerProps {
@@ -72,6 +90,8 @@ interface Graph3DInnerProps {
   showControls?: boolean;
   defaultDimension?: Dimension;
   defaultCameraType?: CameraType;
+  defaultWindowCenter?: [number, number];
+  defaultWindowArea?: number;
   autoRotate?: boolean;
 }
 
@@ -83,29 +103,49 @@ function Graph3DInner({
   defaultCameraType = defaultDimension === "3D"
     ? "perspective"
     : "orthographic",
+  defaultWindowCenter = [0, 0],
+  defaultWindowArea = 100,
   autoRotate = false,
 }: Graph3DInnerProps) {
   const viewInfo = useDimensionCamerasAndControls(
     defaultDimension,
     defaultCameraType,
+    defaultWindowCenter,
+    defaultWindowArea,
     autoRotate
   );
 
-  const {
-    dimension,
-    setDimension,
-    cameraType,
-    setCameraType,
-    window,
-    windowWorldCoordinates,
-  } = viewInfo;
+  const { dimension, setDimension, cameraType, setCameraType } = viewInfo;
+
+  const [axisComponentCounts, setAxisComponentCounts] = useState({
+    x: 0,
+    y: 0,
+    z: 0,
+  });
 
   return (
-    <Graph3DContext.Provider value={viewInfo}>
+    <Graph3DContext.Provider
+      value={{ ...viewInfo, axisComponentCounts, setAxisComponentCounts }}
+    >
       <ambientLight />
-      <pointLight position={[10, 10, 10]} />
-      {/* <gridHelper position={[0, 0, 0]} /> */}
-      {/* <fog attach="fog" color="white" near={1} far={10} /> */}
+      {/* <pointLight position={[10, 10, 10]} /> */}
+      {/* <pointLight position={[-10, 7, -5]} intensity={0.5} /> */}
+      {/* <SkyBox
+        files={[
+          // "/bluecloud_lf.jpg",
+          // "/bluecloud_rt.jpg",
+          // "/bluecloud_up.jpg",
+          // "/bluecloud_dn.jpg",
+          // "/bluecloud_ft.jpg",
+          // "/bluecloud_bk.jpg",
+          "/clouds1_east.bmp",
+          "/clouds1_west.bmp",
+          "/clouds1_up.bmp",
+          "/clouds1_down.bmp",
+          "/clouds1_north.bmp",
+          "/clouds1_south.bmp",
+        ]}
+      /> */}
       {children(viewInfo)}
       <UITunnel>
         {showControls && (
@@ -224,23 +264,6 @@ function Graph3DInner({
           </div>
         )}
       </UITunnel>
-      {dimension.value === "3D" && showControls && (
-        <>
-          <GizmoHelper alignment="top-right" margin={[80, 80]}>
-            <GizmoViewcube
-              color="#eee"
-              faces={["Right", "Left", "Top", "Bottom", "Front", "Back"]}
-              hoverColor="#ccc"
-              opacity={0.8}
-              strokeColor="#333"
-              textColor="#333"
-            />
-          </GizmoHelper>
-          <GizmoHelper alignment="bottom-right" margin={[80, 80]}>
-            <GizmoViewport />
-          </GizmoHelper>
-        </>
-      )}
     </Graph3DContext.Provider>
   );
 }
@@ -280,7 +303,7 @@ const ORBIT_DISTANCE = 4;
 const perspectiveFov = 50;
 const orthographicFov = 0.01;
 const near = 0.1;
-const far = 1000;
+const far = 10;
 
 // Get quaternion pointing from target toward camera
 const directionToAngle = (direction: Vector3): Quaternion => {
@@ -292,12 +315,15 @@ const directionToAngle = (direction: Vector3): Quaternion => {
 type Window = [[number, number, number], [number, number, number]];
 function getIdealWindow(
   dimension: Dimension,
-  aspect: number
+  viewportAspect: number,
+  windowAspect: number,
+  area: number,
+  center: [number, number]
 ): [Window, Window] {
   // Get top/bottom/left/right coordinates of orthographic camera
   const top = ORBIT_DISTANCE * Math.tan((perspectiveFov / 2) * (Math.PI / 180));
   const bottom = -top;
-  const right = top * aspect;
+  const right = top * viewportAspect;
   const left = -right;
 
   switch (dimension) {
@@ -314,10 +340,7 @@ function getIdealWindow(
       ];
     case "2D":
       return [
-        [
-          [-5, -5 / aspect, 0],
-          [5, 5 / aspect, 0],
-        ],
+        getWindowWithAreaAndAspectRatio(area, windowAspect, center, [0, 0]),
         [
           [left, bottom, 0],
           [right, top, 0],
@@ -325,10 +348,7 @@ function getIdealWindow(
       ];
     case "3D":
       return [
-        [
-          [-5, -5, -5],
-          [5, 5, 5],
-        ],
+        getWindowWithAreaAndAspectRatio(area, windowAspect, center, [-5, 5]),
         [
           [-1, -1, -1],
           [1, 1, 1],
@@ -337,9 +357,26 @@ function getIdealWindow(
   }
 }
 
+function getWindowWithAreaAndAspectRatio(
+  area: number,
+  aspect: number,
+  center: [number, number],
+  [minZ, maxZ]: [number, number]
+): Window {
+  const width = Math.sqrt(area * aspect);
+  const height = area / width;
+
+  return [
+    [center[0] - width / 2, center[1] - height / 2, minZ],
+    [center[0] + width / 2, center[1] + height / 2, maxZ],
+  ];
+}
+
 function useDimensionCamerasAndControls(
   defaultDimension: Dimension = "3D",
   defaultCameraType: CameraType = "perspective",
+  defaultWindowCenter: [number, number] = [0, 0],
+  defaultWindowArea: number = 100,
   autoRotate: boolean = false
 ): ViewInfo {
   if (defaultDimension !== "3D" && defaultCameraType !== "orthographic") {
@@ -376,7 +413,10 @@ function useDimensionCamerasAndControls(
 
   const [defaultWindow, defaultWWC] = getIdealWindow(
     defaultDimension,
-    viewport.aspect
+    viewport.aspect,
+    defaultDimension === "2D" ? viewport.aspect : 1,
+    defaultWindowArea,
+    defaultWindowCenter
   );
   const [window, setWindow] = useState<AnimatableValue<Window>>({
     value: defaultWindow,
@@ -401,6 +441,8 @@ function useDimensionCamerasAndControls(
         .multiplyScalar(actualDistance)
         .add(target);
       pCam.quaternion.copy(angle);
+      pCam.near = near + actualDistance - distance;
+      pCam.far = far + actualDistance - distance;
       pCam.updateProjectionMatrix();
 
       oCam.position
@@ -413,6 +455,8 @@ function useDimensionCamerasAndControls(
       oCam.bottom = -requiredHeight;
       oCam.right = requiredHeight * viewport.aspect;
       oCam.left = -requiredHeight * viewport.aspect;
+      oCam.near = near;
+      oCam.far = far;
       oCam.updateProjectionMatrix();
     },
     [oCam, pCam, viewport.aspect]
@@ -567,6 +611,12 @@ function useDimensionCamerasAndControls(
               to.cameraType === "perspective" ? pCam : oCam;
           }
 
+          // Set values to static (no longer animating, no .from or .to)
+          setDimensionRaw({ value: to.dimension });
+          setCameraTypeRaw({ value: to.cameraType });
+          setWindow({ value: to.window });
+          setWindowWorldCoordinates({ value: to.windowWorldCoordinates });
+
           orbitControls.enabled = to.dimension === "3D";
 
           onComplete?.();
@@ -591,9 +641,43 @@ function useDimensionCamerasAndControls(
 
   const setDimension = useCallback(
     (newDimension: Dimension) => {
-      const [window, windowWorldCoordinates] = getIdealWindow(
+      const oldWidth = window.value[1][0] - window.value[0][0];
+      const oldHeight = window.value[1][1] - window.value[0][1];
+
+      const oldArea = oldWidth * oldHeight;
+      const oldAspect = oldWidth / oldHeight;
+
+      const oldWorldWidth =
+        windowWorldCoordinates.value[1][0] - windowWorldCoordinates.value[0][0];
+      const oldWorldHeight =
+        windowWorldCoordinates.value[1][1] - windowWorldCoordinates.value[0][1];
+
+      const oldWorldAspect = oldWorldWidth / oldWorldHeight;
+
+      const oldCenter: [number, number] = [
+        (window.value[0][0] + window.value[1][0]) / 2,
+        (window.value[0][1] + window.value[1][1]) / 2,
+      ];
+
+      let newAspect = 1;
+      let newArea = oldArea;
+      if (dimension.value === "1D") {
+        // If coming from 1D, make it square
+        newAspect = viewport.aspect;
+        newArea = oldWidth * (oldWidth * viewport.aspect);
+      } else {
+        // Preserve the old aspect ratio, but account for the fact
+        // that the world aspect ratio might have changed
+        const newWorldAspect = newDimension === "3D" ? 1 : viewport.aspect;
+        newAspect = (oldAspect / oldWorldAspect) * newWorldAspect;
+      }
+
+      const [newWindow, newWWC] = getIdealWindow(
         newDimension,
-        viewport.aspect
+        viewport.aspect,
+        newAspect,
+        newArea,
+        oldCenter
       );
 
       switch (newDimension) {
@@ -604,8 +688,8 @@ function useDimensionCamerasAndControls(
             cameraTarget: new Vector3(0, 0, 0),
             cameraDirection: new Vector3(0, 1, 0),
             cameraDistance: ORBIT_DISTANCE,
-            window,
-            windowWorldCoordinates,
+            window: newWindow,
+            windowWorldCoordinates: newWWC,
           });
           break;
         }
@@ -616,8 +700,8 @@ function useDimensionCamerasAndControls(
             cameraTarget: new Vector3(0, 0, 0),
             cameraDirection: new Vector3(0, 1, 0),
             cameraDistance: ORBIT_DISTANCE,
-            window,
-            windowWorldCoordinates,
+            window: newWindow,
+            windowWorldCoordinates: newWWC,
           });
           break;
         }
@@ -627,14 +711,20 @@ function useDimensionCamerasAndControls(
             cameraTarget: new Vector3(0, 0, 0),
             cameraDirection: new Vector3(1, 1, 1).normalize(),
             cameraDistance: ORBIT_DISTANCE,
-            window,
-            windowWorldCoordinates,
+            window: newWindow,
+            windowWorldCoordinates: newWWC,
           });
           break;
         }
       }
     },
-    [viewport.aspect, animateCameraMove]
+    [
+      window.value,
+      windowWorldCoordinates.value,
+      dimension.value,
+      viewport.aspect,
+      animateCameraMove,
+    ]
   );
 
   const setCameraType = useCallback(
@@ -699,6 +789,87 @@ function useDimensionCamerasAndControls(
     },
     [window.value, windowWorldCoordinates.value]
   );
+
+  // Click and drag to pan
+  interface DragState {
+    startWindow: Window;
+    startMouse: [number, number];
+  }
+  const [dragState, setDragState] = useState<DragState | null>(null);
+  const onMouseDown = useCallback(
+    (event: MouseEvent) => {
+      if (dimension.value === "3D" && !event.shiftKey) return;
+      setDragState({
+        startWindow: window.value,
+        startMouse: [event.clientX, event.clientY],
+      });
+    },
+    [dimension.value, window.value]
+  );
+  const onMouseMove = useCallback(
+    (event: MouseEvent) => {
+      if (dragState === null) return;
+      if (dimension.value === "3D" && !event.shiftKey) {
+        setDragState(null);
+        return;
+      }
+
+      const [x, y] = dragState.startMouse;
+      const dx = event.clientX - x;
+      const dy = event.clientY - y;
+
+      setWindow((window) => {
+        if (window.from !== undefined || window.to !== undefined) {
+          // Currently animating; don't also drag
+          // TODO: Allow dragging while animating? (Update .from and .to, not just .value?)
+          return window;
+        }
+
+        const windowWidth = window.value[1][0] - window.value[0][0];
+        const xMoveScale =
+          dimension.value === "3D" ? 0.03 : windowWidth / viewport.width;
+
+        const windowHeight = window.value[1][1] - window.value[0][1];
+        const yMoveScale =
+          dimension.value === "3D" ? 0.03 : windowHeight / viewport.height;
+
+        return {
+          value: [
+            [
+              dragState.startWindow[0][0] - dx * xMoveScale,
+              dragState.startWindow[0][1] + dy * yMoveScale,
+              dragState.startWindow[0][2],
+            ],
+            [
+              dragState.startWindow[1][0] - dx * xMoveScale,
+              dragState.startWindow[1][1] + dy * yMoveScale,
+              dragState.startWindow[1][2],
+            ],
+          ],
+        };
+      });
+    },
+    [dimension.value, dragState, viewport.height, viewport.width]
+  );
+  const onMouseUp = useCallback(() => {
+    setDragState(null);
+  }, []);
+
+  const { gl } = useThree();
+
+  useEffect(() => {
+    const canvas = gl.domElement;
+
+    canvas.addEventListener("mousedown", onMouseDown);
+    global.addEventListener("mousemove", onMouseMove);
+    global.addEventListener("mouseup", onMouseUp);
+
+    return () => {
+      canvas.removeEventListener("mousedown", onMouseDown);
+      global.removeEventListener("mousemove", onMouseMove);
+      global.removeEventListener("mouseup", onMouseUp);
+    };
+  }, [gl.domElement, onMouseDown, onMouseMove, onMouseUp]);
 
   return {
     dimension,
@@ -800,17 +971,12 @@ function usePerspectiveCamera(setAsDefaultForScene: boolean) {
     return pCam;
   });
 
-  useEffect(() => {
-    const updateAspect = () => {
+  useFrame(() => {
+    if (perspectiveCamera.aspect !== viewport.aspect) {
       perspectiveCamera.aspect = viewport.aspect;
       perspectiveCamera.updateProjectionMatrix();
-    };
-
-    window.addEventListener("resize", updateAspect);
-    return () => {
-      window.removeEventListener("resize", updateAspect);
-    };
-  }, [gl.domElement, perspectiveCamera, viewport]);
+    }
+  });
 
   return perspectiveCamera;
 }
@@ -889,4 +1055,24 @@ function useOrbitControls(
   });
 
   return orbitControls;
+}
+
+interface SkyBoxProps {
+  files: [string, string, string, string, string, string];
+}
+
+function SkyBox({ files }: SkyBoxProps) {
+  const { scene } = useThree();
+
+  const texture = useMemo(() => {
+    const loader = new CubeTextureLoader();
+    return loader.load(files);
+  }, [files]);
+
+  // Set the scene background property to the resulting texture.
+  useEffect(() => {
+    scene.background = texture;
+  }, [scene, texture]);
+
+  return null;
 }

@@ -7,7 +7,7 @@ import { GraphBoundingBox3D } from "../../components/Graph3D/GraphBoundingBox3D"
 import { GraphCurve3D } from "../../components/Graph3D/GraphCurve3D";
 import { GraphEquation3D } from "../../components/Graph3D/GraphEquation3D";
 import { GraphGrid3D } from "../../components/Graph3D/GraphGrid3D";
-import { GraphSurface3D } from "../../components/Graph3D/GraphSurface3D";
+import { GraphSurfaceGridMaterial } from "../../components/Graph3D/GraphSurfaceGridMaterial";
 import { Latex } from "../../components/Latex";
 
 let coneParabolaPoints = new Float32Array(((5 - -5 / 4) / 0.02) * 2 * 3);
@@ -83,8 +83,7 @@ export default function Parabolas() {
                       <GraphAxis3D axis="x" />
                       <GraphAxis3D axis="y" />
                       <GraphBoundingBox3D />
-                      <GraphSurface3D
-                        color="blue"
+                      <mesh
                         scale={new Vector3(0.2, 0.2, 0.2)}
                         rotation={new Euler(Math.atan(-1 / 2), 0, 0)}
                       >
@@ -92,9 +91,9 @@ export default function Parabolas() {
                           attach="geometry"
                           args={[15, 15, 1, 1]}
                         />
-                      </GraphSurface3D>
-                      <GraphSurface3D
-                        color="red"
+                        <GraphSurfaceGridMaterial color="blue" />
+                      </mesh>
+                      <mesh
                         scale={new Vector3(0.2, 0.2, 0.2)}
                         position={new Vector3(0, 0, 0)}
                       >
@@ -102,7 +101,8 @@ export default function Parabolas() {
                           attach="geometry"
                           args={[5, 10, 64, 1, true]}
                         />
-                      </GraphSurface3D>
+                        <GraphSurfaceGridMaterial color="red" />
+                      </mesh>
                       <GraphCurve3D
                         positions={coneParabolaPoints}
                         color="black"

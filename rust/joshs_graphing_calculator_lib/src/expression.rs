@@ -6,7 +6,7 @@ use std::any::Any;
 use std::collections::{HashMap, HashSet};
 
 pub trait Expression: ASTNode + std::fmt::Display + std::fmt::Debug {
-    fn evaluate(&self, values: &HashMap<&str, f64>) -> Result<f64, String>;
+    fn evaluate(&self, values: &HashMap<String, f64>) -> Result<f64, String>;
     fn derivative(&self, variable: &str) -> Box<dyn Expression>;
     fn get_real_domain(&self) -> Box<dyn Set>;
     fn basic_simplify(&self) -> Box<dyn Expression>;
@@ -40,7 +40,7 @@ impl Constant {
     }
 }
 impl Expression for Constant {
-    fn evaluate(&self, _values: &HashMap<&str, f64>) -> Result<f64, String> {
+    fn evaluate(&self, _values: &HashMap<String, f64>) -> Result<f64, String> {
         Ok(self.value)
     }
     fn derivative(&self, _variable: &str) -> Box<dyn Expression> {
@@ -90,8 +90,8 @@ impl Variable {
     }
 }
 impl Expression for Variable {
-    fn evaluate(&self, values: &HashMap<&str, f64>) -> Result<f64, String> {
-        match values.get(&self.name.as_str()) {
+    fn evaluate(&self, values: &HashMap<String, f64>) -> Result<f64, String> {
+        match values.get(&self.name) {
             Some(value) => return Ok(*value),
             None => Err(format!("No value for variable {}", self.name)),
         }
@@ -153,7 +153,7 @@ impl Plus {
     }
 }
 impl Expression for Plus {
-    fn evaluate(&self, values: &HashMap<&str, f64>) -> Result<f64, String> {
+    fn evaluate(&self, values: &HashMap<String, f64>) -> Result<f64, String> {
         self.terms.iter().map(|term| term.evaluate(values)).sum()
     }
     fn derivative(&self, variable: &str) -> Box<dyn Expression> {
@@ -270,7 +270,7 @@ impl Minus {
     }
 }
 impl Expression for Minus {
-    fn evaluate(&self, values: &HashMap<&str, f64>) -> Result<f64, String> {
+    fn evaluate(&self, values: &HashMap<String, f64>) -> Result<f64, String> {
         Ok(-self.value.evaluate(values)?)
     }
     fn derivative(&self, variable: &str) -> Box<dyn Expression> {
@@ -326,7 +326,7 @@ impl Times {
     }
 }
 impl Expression for Times {
-    fn evaluate(&self, values: &HashMap<&str, f64>) -> Result<f64, String> {
+    fn evaluate(&self, values: &HashMap<String, f64>) -> Result<f64, String> {
         self.factors
             .iter()
             .map(|factor| factor.evaluate(values))
@@ -460,7 +460,7 @@ impl Inverse {
     }
 }
 impl Expression for Inverse {
-    fn evaluate(&self, values: &HashMap<&str, f64>) -> Result<f64, String> {
+    fn evaluate(&self, values: &HashMap<String, f64>) -> Result<f64, String> {
         Ok(1.0 / self.value.evaluate(values)?)
     }
     fn derivative(&self, variable: &str) -> Box<dyn Expression> {
@@ -528,7 +528,7 @@ impl Power {
     }
 }
 impl Expression for Power {
-    fn evaluate(&self, values: &HashMap<&str, f64>) -> Result<f64, String> {
+    fn evaluate(&self, values: &HashMap<String, f64>) -> Result<f64, String> {
         let base = self.base.evaluate(values)?;
         let exponent = self.exponent.evaluate(values)?;
         Ok(base.powf(exponent))
@@ -671,7 +671,7 @@ impl Log {
     }
 }
 impl Expression for Log {
-    fn evaluate(&self, values: &HashMap<&str, f64>) -> Result<f64, String> {
+    fn evaluate(&self, values: &HashMap<String, f64>) -> Result<f64, String> {
         let base = self.base;
         let value = self.value.evaluate(values)?;
         Ok(value.log(base))
@@ -755,7 +755,7 @@ impl Sin {
     }
 }
 impl Expression for Sin {
-    fn evaluate(&self, values: &HashMap<&str, f64>) -> Result<f64, String> {
+    fn evaluate(&self, values: &HashMap<String, f64>) -> Result<f64, String> {
         Ok(self.value.evaluate(values)?.sin())
     }
     fn derivative(&self, variable: &str) -> Box<dyn Expression> {
@@ -813,7 +813,7 @@ impl Cos {
     }
 }
 impl Expression for Cos {
-    fn evaluate(&self, values: &HashMap<&str, f64>) -> Result<f64, String> {
+    fn evaluate(&self, values: &HashMap<String, f64>) -> Result<f64, String> {
         Ok(self.value.evaluate(values)?.cos())
     }
     fn derivative(&self, variable: &str) -> Box<dyn Expression> {
@@ -871,7 +871,7 @@ impl Tan {
     }
 }
 impl Expression for Tan {
-    fn evaluate(&self, values: &HashMap<&str, f64>) -> Result<f64, String> {
+    fn evaluate(&self, values: &HashMap<String, f64>) -> Result<f64, String> {
         Ok(self.value.evaluate(values)?.tan())
     }
     fn derivative(&self, variable: &str) -> Box<dyn Expression> {
@@ -932,7 +932,7 @@ impl Abs {
     }
 }
 impl Expression for Abs {
-    fn evaluate(&self, values: &HashMap<&str, f64>) -> Result<f64, String> {
+    fn evaluate(&self, values: &HashMap<String, f64>) -> Result<f64, String> {
         Ok(self.value.evaluate(values)?.abs())
     }
     fn derivative(&self, variable: &str) -> Box<dyn Expression> {

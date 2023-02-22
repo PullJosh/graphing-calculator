@@ -2,6 +2,7 @@ use wasm_bindgen::prelude::*;
 
 use crate::equation::*;
 use crate::expression::*;
+use crate::triangle::Triangle3D;
 use na::{OMatrix, U1, U2, U3};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -52,6 +53,30 @@ impl GraphBox {
     }
 }
 
+#[wasm_bindgen]
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct GraphBox3D {
+    pub x_min: f64,
+    pub x_max: f64,
+    pub y_min: f64,
+    pub y_max: f64,
+    pub z_min: f64,
+    pub z_max: f64,
+}
+
+impl GraphBox3D {
+    pub fn new(x_min: f64, x_max: f64, y_min: f64, y_max: f64, z_min: f64, z_max: f64) -> Self {
+        GraphBox3D {
+            x_min,
+            x_max,
+            y_min,
+            y_max,
+            z_min,
+            z_max,
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum QuadTreeNode {
     Root(Box<QuadTreeRootNode>),
@@ -73,34 +98,59 @@ pub struct QuadTreeLeafNode {
 }
 
 pub fn graph_equation_2d(
-    var1: &str,
-    var2: &str,
+    var1: &String,
+    var2: &String,
     window: &GraphBox,
     equation: &Equation,
     depth: i64,
     search_depth: i64,
+    var_values: &HashMap<String, f64>,
 ) -> Result<Vec<Contour2D>, String> {
     if let Some(var) = equation.left.as_any().downcast_ref::<Variable>() {
-        if var.name == var1 {
+        if &var.name == var1 {
             if equation.right.count_var_instances(var1) == 0 {
-                return graph_function_2d(var2, window, equation.right.clone(), true);
+                return graph_function_2d(
+                    var2.to_string(),
+                    window,
+                    equation.right.clone(),
+                    var_values,
+                    true,
+                );
             }
         }
-        if var.name == var2 {
+        if &var.name == var2 {
             if equation.right.count_var_instances(var2) == 0 {
-                return graph_function_2d(var1, window, equation.right.clone(), false);
+                return graph_function_2d(
+                    var1.to_string(),
+                    window,
+                    equation.right.clone(),
+                    var_values,
+                    false,
+                );
             }
         }
     }
     if let Some(var) = equation.right.as_any().downcast_ref::<Variable>() {
-        if var.name == var1 {
+        if &var.name == var1 {
             if equation.left.count_var_instances(var1) == 0 {
-                return graph_function_2d(var2, window, equation.left.clone(), true);
+                return graph_function_2d(
+                    var2.to_string(),
+                    window,
+                    equation.left.clone(),
+                    var_values,
+                    true,
+                );
             }
         }
-        if var.name == var2 {
+        if &var.name == var2 {
             if equation.left.count_var_instances(var2) == 0 {
-                return graph_function_2d(var1, window, equation.left.clone(), false);
+                return graph_function_2d(
+                    var1.to_string(),
+                    window,
+                    equation.left.clone(),
+                    var_values,
+                    false,
+                );
             }
         }
     }
@@ -111,31 +161,38 @@ pub fn graph_equation_2d(
     ]);
 
     let variables = expression.get_variables();
-    if variables.iter().any(|v| v != var1 && v != var2) {
+    if variables
+        .iter()
+        .any(|v| v != var1 && v != var2 && !var_values.contains_key(v))
+    {
         return Err(format!(
-            "Cannot plot equation of variables [{}] on axes {} and {}",
+            "Cannot plot equation of variables [{}] on axes {} and {} with variable values [{}]",
             variables
                 .iter()
                 .map(|x| x.to_owned() + ",")
                 .collect::<String>(),
             var1,
-            var2
+            var2,
+            var_values
+                .iter()
+                .map(|(k, v)| k.to_owned() + "=" + &v.to_string() + ",")
+                .collect::<String>()
         ));
     }
 
     let f = |Point2D(x, y)| {
-        let mut variables = HashMap::new();
-        variables.insert(var1, x);
-        variables.insert(var2, y);
+        let mut variables = var_values.clone();
+        variables.insert(var1.to_string(), x);
+        variables.insert(var2.to_string(), y);
         expression.evaluate(&variables).unwrap()
     };
 
     let dx = expression.derivative(var1).basic_simplify();
     let dy = expression.derivative(var2).basic_simplify();
     let df = |Point2D(x, y)| {
-        let mut variables = HashMap::new();
-        variables.insert(var1, x);
-        variables.insert(var2, y);
+        let mut variables = var_values.clone();
+        variables.insert(var1.to_string(), x);
+        variables.insert(var2.to_string(), y);
         Vec2D(
             dx.evaluate(&variables).unwrap(),
             dy.evaluate(&variables).unwrap(),
@@ -148,10 +205,93 @@ pub fn graph_equation_2d(
     Ok(get_contours_2d(&tree))
 }
 
+pub fn graph_equation_3d(
+    var1: &String,
+    var2: &String,
+    var3: &String,
+    window: &GraphBox3D,
+    equation: &Equation,
+    var_values: &HashMap<String, f64>,
+) -> Result<Vec<Triangle3D>, String> {
+    if let Some(var) = equation.left.as_any().downcast_ref::<Variable>() {
+        if &var.name == var1 {
+            if equation.right.count_var_instances(var1) == 0 {
+                return graph_function_3d(
+                    var2.to_string(),
+                    var3.to_string(),
+                    window,
+                    equation.right.clone(),
+                    var_values,
+                );
+            }
+        }
+        if &var.name == var2 {
+            if equation.right.count_var_instances(var2) == 0 {
+                return graph_function_3d(
+                    var1.to_string(),
+                    var3.to_string(),
+                    window,
+                    equation.right.clone(),
+                    var_values,
+                );
+            }
+        }
+        if &var.name == var3 {
+            if equation.right.count_var_instances(var3) == 0 {
+                return graph_function_3d(
+                    var1.to_string(),
+                    var2.to_string(),
+                    window,
+                    equation.right.clone(),
+                    var_values,
+                );
+            }
+        }
+    }
+    if let Some(var) = equation.right.as_any().downcast_ref::<Variable>() {
+        if &var.name == var1 {
+            if equation.left.count_var_instances(var1) == 0 {
+                return graph_function_3d(
+                    var2.to_string(),
+                    var3.to_string(),
+                    window,
+                    equation.left.clone(),
+                    var_values,
+                );
+            }
+        }
+        if &var.name == var2 {
+            if equation.left.count_var_instances(var2) == 0 {
+                return graph_function_3d(
+                    var1.to_string(),
+                    var3.to_string(),
+                    window,
+                    equation.left.clone(),
+                    var_values,
+                );
+            }
+        }
+        if &var.name == var3 {
+            if equation.left.count_var_instances(var3) == 0 {
+                return graph_function_3d(
+                    var1.to_string(),
+                    var2.to_string(),
+                    window,
+                    equation.left.clone(),
+                    var_values,
+                );
+            }
+        }
+    }
+
+    Err("Cannot plot 3D equation that is not solved in terms of one variable".to_string())
+}
+
 pub fn graph_function_2d(
-    var: &str,
+    var: String,
     window: &GraphBox,
     expression: Box<dyn Expression>,
+    var_values: &HashMap<String, f64>,
     flipped: bool,
 ) -> Result<Vec<Contour2D>, String> {
     let mut contours = vec![];
@@ -162,7 +302,7 @@ pub fn graph_function_2d(
     //     expression.get_real_domain().basic_simplify()
     // ));
 
-    let mut variables = HashMap::new();
+    let mut variables = var_values.clone();
     use rand::Rng;
     let mut rng: rand::rngs::StdRng = rand::SeedableRng::seed_from_u64(0);
     for i in 0..501 {
@@ -176,7 +316,7 @@ pub fn graph_function_2d(
                 rng.gen::<f64>() - 0.5
             };
         let x = window.x_min + (window.x_max - window.x_min) * randomized_i / 500.0;
-        variables.insert(var, x);
+        variables.insert(var.clone(), x);
 
         let y = expression.evaluate(&variables)?;
 
@@ -192,6 +332,63 @@ pub fn graph_function_2d(
     contours.push(contour);
 
     Ok(contours)
+}
+
+pub fn graph_function_3d(
+    var1: String,
+    var2: String,
+    window: &GraphBox3D,
+    expression: Box<dyn Expression>,
+    var_values: &HashMap<String, f64>,
+) -> Result<Vec<Triangle3D>, String> {
+    const DIVISIONS_X: usize = 30;
+    const DIVISIONS_Y: usize = 30;
+
+    let mut values = [[0.0; DIVISIONS_X + 1]; DIVISIONS_Y + 1];
+
+    let mut variables = var_values.clone();
+    for i in 0..(DIVISIONS_X + 1) {
+        for j in 0..(DIVISIONS_Y + 1) {
+            // In high-frequency graphs, taking regular samples can cause patterns to
+            // appear that are not actually there. (For example, when graphing y = sin(x^2)
+            // and zooming out.) To avoid this, we randomize the sample point slightly.
+            let x = window.x_min + (window.x_max - window.x_min) * i as f64 / (DIVISIONS_X as f64);
+            let y = window.y_min + (window.y_max - window.y_min) * j as f64 / (DIVISIONS_Y as f64);
+            variables.insert(var1.clone(), x);
+            variables.insert(var2.clone(), y);
+
+            let z = expression.evaluate(&variables)?;
+            values[i][j] = z;
+        }
+    }
+
+    let mut triangles = vec![];
+    for i in 0..DIVISIONS_X {
+        for j in 0..DIVISIONS_Y {
+            let min_x =
+                window.x_min + (window.x_max - window.x_min) * i as f64 / (DIVISIONS_X as f64);
+            let min_y =
+                window.y_min + (window.y_max - window.y_min) * j as f64 / (DIVISIONS_Y as f64);
+            let max_x = window.x_min
+                + (window.x_max - window.x_min) * (i + 1) as f64 / (DIVISIONS_X as f64);
+            let max_y = window.y_min
+                + (window.y_max - window.y_min) * (j + 1) as f64 / (DIVISIONS_Y as f64);
+
+            let a = Point3D(min_x, min_y, values[i][j]);
+            let b = Point3D(max_x, min_y, values[i + 1][j]);
+            let c = Point3D(min_x, max_y, values[i][j + 1]);
+            let d = Point3D(max_x, max_y, values[i + 1][j + 1]);
+
+            if a.2.is_finite() && b.2.is_finite() && c.2.is_finite() {
+                triangles.push(Triangle3D(c, a, b));
+            }
+            if b.2.is_finite() && c.2.is_finite() && d.2.is_finite() {
+                triangles.push(Triangle3D(b, d, c));
+            }
+        }
+    }
+
+    Ok(triangles)
 }
 
 fn build_tree(

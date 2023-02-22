@@ -4,7 +4,7 @@ use std::any::Any;
 use std::collections::HashMap;
 
 pub trait Set: ASTNode + std::fmt::Debug {
-    fn contains(&self, variables: &HashMap<&str, f64>) -> bool;
+    fn contains(&self, variables: &HashMap<String, f64>) -> bool;
     fn basic_simplify(&self) -> Box<dyn Set>;
 
     fn clone_dyn(&self) -> Box<dyn Set>;
@@ -25,7 +25,7 @@ impl EmptySet {
     }
 }
 impl Set for EmptySet {
-    fn contains(&self, _variables: &HashMap<&str, f64>) -> bool {
+    fn contains(&self, _variables: &HashMap<String, f64>) -> bool {
         false
     }
     fn basic_simplify(&self) -> Box<dyn Set> {
@@ -48,7 +48,7 @@ impl FullSet {
     }
 }
 impl Set for FullSet {
-    fn contains(&self, _variables: &HashMap<&str, f64>) -> bool {
+    fn contains(&self, _variables: &HashMap<String, f64>) -> bool {
         true
     }
     fn basic_simplify(&self) -> Box<dyn Set> {
@@ -73,7 +73,7 @@ impl Union {
     }
 }
 impl Set for Union {
-    fn contains(&self, variables: &HashMap<&str, f64>) -> bool {
+    fn contains(&self, variables: &HashMap<String, f64>) -> bool {
         for set in &self.sets {
             if set.contains(variables) {
                 return true;
@@ -122,7 +122,7 @@ impl Intersection {
     }
 }
 impl Set for Intersection {
-    fn contains(&self, variables: &HashMap<&str, f64>) -> bool {
+    fn contains(&self, variables: &HashMap<String, f64>) -> bool {
         for set in &self.sets {
             if !set.contains(variables) {
                 return false;
@@ -191,7 +191,7 @@ impl Equation {
     }
 }
 impl Set for Equation {
-    fn contains(&self, variables: &HashMap<&str, f64>) -> bool {
+    fn contains(&self, variables: &HashMap<String, f64>) -> bool {
         let lhs = self.left.evaluate(variables);
         let rhs = self.right.evaluate(variables);
 
@@ -247,8 +247,8 @@ pub struct Interval {
     pub upper_inclusive: bool,
 }
 impl Set for Interval {
-    fn contains(&self, variables: &HashMap<&str, f64>) -> bool {
-        let value = variables.get(&self.variable.as_str());
+    fn contains(&self, variables: &HashMap<String, f64>) -> bool {
+        let value = variables.get(&self.variable);
         let value = match value {
             Some(v) => *v,
             None => return false,

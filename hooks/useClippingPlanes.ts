@@ -1,9 +1,10 @@
 import { useContext, useMemo } from "react";
 import { Plane, Vector3 } from "three";
 import { Graph3DContext } from "../components/Graph3D/Graph3D";
+import { Axis } from "../types";
 
 export function useClippingPlanes(
-  axesToClip: ("x" | "y" | "z")[] = ["x", "y", "z"],
+  axesToClip: Axis[] = ["x", "y", "z"],
   providedWindowWorldCoordinates?: [
     [number, number, number],
     [number, number, number]

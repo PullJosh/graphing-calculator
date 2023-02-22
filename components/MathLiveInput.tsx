@@ -3,6 +3,10 @@ import { useEffect, useRef, useState } from "react";
 import * as Mathlive from "mathlive";
 import "mathlive/dist/mathlive-fonts.css";
 
+import { ComputeEngine } from "@cortex-js/compute-engine";
+import classNames from "classnames";
+const ce = new ComputeEngine();
+
 interface MathLiveInputProps {
   latex: string;
   onChange: (latex: string) => void;
@@ -38,7 +42,10 @@ export function MathLiveInput({
 
     const elem = mathFieldElement.current!;
     elem.setOptions(options);
-    mathFieldElement.current.className = className ?? "";
+    mathFieldElement.current.className = classNames(
+      "cursor-text",
+      className ?? ""
+    );
     mathFieldElement.current.style.cssText = style ?? "";
     elem.oninput = () => onChange(elem.getValue("latex"));
   }, [div, options, className, style, onChange, latex]);
@@ -58,7 +65,13 @@ export function MathLiveInput({
       className={wrapperDivClassName}
       style={wrapperDivStyle}
       onDoubleClick={() => {
-        console.log(mathFieldElement.current?.getValue("math-json"));
+        const latex = mathFieldElement.current?.getValue("latex");
+        if (latex) {
+          const mathJSON = ce.parse(latex);
+          console.log(mathJSON.json);
+        } else {
+          console.warn("Could not get latex for input");
+        }
       }}
     />
   );

@@ -1,11 +1,4 @@
-import {
-  useContext,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { BoxedExpression, ComputeEngine } from "@cortex-js/compute-engine";
 import { DoubleSide, ShaderMaterial, Vector2 } from "three";
 const ce = new ComputeEngine();

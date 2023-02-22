@@ -7,8 +7,9 @@ import { Line2 } from "three/examples/jsm/lines/Line2";
 import { Line, Plane, Vector2, Vector3 } from "three";
 import { Graph3DContext } from "./Graph3D";
 import { useClippingPlanes } from "../../hooks/useClippingPlanes";
-import { GraphSurface3D } from "./GraphSurface3D";
+import { GraphSurfaceGridMaterial } from "./GraphSurfaceGridMaterial";
 import { lerp } from "../../utils/lerp";
+import { getColor } from "../../utils/tailwindColors";
 
 extend({ LineMaterial, LineGeometry, Line2, Line_: Line });
 declare module "@react-three/fiber" {
@@ -74,6 +75,12 @@ export function GraphContours3D({ flatContours, color }: GraphContours3DProps) {
         (window[1][1] - window[0][1])
   );
 
+  const position = new Vector3(
+    (-(window[0][0] + window[1][0]) / 2) * scale.x,
+    (-(window[0][2] + window[1][2]) / 2) * scale.y,
+    ((window[0][1] + window[1][1]) / 2) * scale.z
+  );
+
   const clippingPlanes2D = useClippingPlanes(["x", "y"]);
 
   const { dimension } = viewInfo;
@@ -82,7 +89,7 @@ export function GraphContours3D({ flatContours, color }: GraphContours3DProps) {
     <>
       {contours.map((contour, i) => (
         <Fragment key={JSON.stringify(contour)}>
-          <line2 scale={scale}>
+          <line2 scale={scale} position={position}>
             <lineGeometry
               attach="geometry"
               onUpdate={(self) => {
@@ -91,7 +98,7 @@ export function GraphContours3D({ flatContours, color }: GraphContours3DProps) {
             />
             <lineMaterial
               attach="material"
-              color={color === "red" ? "rgb(220, 38, 38)" : "rgb(37, 99, 235)"}
+              color={getColor(color)}
               linewidth={lerp(
                 (dimension.from ?? dimension.value) === "3D" ? 0 : 3,
                 (dimension.to ?? dimension.value) === "3D" ? 0 : 3,
@@ -105,7 +112,7 @@ export function GraphContours3D({ flatContours, color }: GraphContours3DProps) {
           </line2>
           <line_
             scale={scale}
-            position={new Vector3(0, windowWorldCoordinates[0][2], 0)}
+            position={position.clone().setY(windowWorldCoordinates[0][2])}
           >
             <bufferGeometry attach="geometry">
               <bufferAttribute
@@ -117,13 +124,13 @@ export function GraphContours3D({ flatContours, color }: GraphContours3DProps) {
             </bufferGeometry>
             <lineBasicMaterial
               attach="material"
-              color={color === "red" ? "rgb(220, 38, 38)" : "rgb(37, 99, 235)"}
+              color={getColor(color)}
               clippingPlanes={clippingPlanes2D}
             />
           </line_>
           <line_
             scale={scale}
-            position={new Vector3(0, windowWorldCoordinates[1][2], 0)}
+            position={position.clone().setY(windowWorldCoordinates[1][2])}
           >
             <bufferGeometry attach="geometry">
               <bufferAttribute
@@ -135,26 +142,28 @@ export function GraphContours3D({ flatContours, color }: GraphContours3DProps) {
             </bufferGeometry>
             <lineBasicMaterial
               attach="material"
-              color={color === "red" ? "rgb(220, 38, 38)" : "rgb(37, 99, 235)"}
+              color={getColor(color)}
               clippingPlanes={clippingPlanes2D}
             />
           </line_>
         </Fragment>
       ))}
       {vertices3D.length > 0 && (
-        <GraphSurface3D color={color} scale={scale}>
+        <mesh scale={scale} position={position}>
           <bufferGeometry
             attach="geometry"
             onUpdate={(self) => self.computeVertexNormals()}
           >
             <bufferAttribute
+              key={JSON.stringify(vertices3D)}
               attach="attributes-position"
               array={vertices3D}
               count={vertices3D.length / 3}
               itemSize={3}
             />
           </bufferGeometry>
-        </GraphSurface3D>
+          <GraphSurfaceGridMaterial color={color} />
+        </mesh>
       )}
     </>
   );
