@@ -77,27 +77,27 @@ export function Area({
 
   const translation = new Vector3(
     normalAxis === "x" ? normalAxisPosition : 0,
-    normalAxis === "z" ? normalAxisPosition : 0,
-    normalAxis === "y" ? normalAxisPosition : 0
-  ).multiply(sceneScaleFactor);
+    normalAxis === "y" ? normalAxisPosition : 0,
+    normalAxis === "z" ? normalAxisPosition : 0
+  );
 
   return (
     <>
-      <group
-        rotation={
-          axis1 === "y" && axis2 === "x"
-            ? new Euler(Math.PI, Math.PI / 2, 0, "YXZ")
-            : new Euler(
-                axis2 === "z" ? Math.PI / 2 : 0,
-                (axis1 === "y" ? Math.PI / 2 : 0) +
-                  (axis2 === "x" ? Math.PI / 2 : 0) * (axis1 === "z" ? -1 : 1),
-                axis1 === "z" ? Math.PI / 2 : 0,
-                "YXZ"
-              )
-        }
-        position={translation}
-      >
-        <mesh scale={scale} position={position} rotation={rotation}>
+      <group scale={scale} position={position} rotation={rotation}>
+        <mesh
+          rotation={
+            axis1 === "y" && axis2 === "x"
+              ? new Euler(Math.PI, Math.PI / 2, 0, "YXZ")
+              : new Euler(
+                  axis2 === "z" ? Math.PI / 2 : 0,
+                  (axis1 === "y" ? Math.PI / 2 : 0) +
+                    (axis2 === "x" ? Math.PI / 2 : 0) *
+                      (axis1 === "z" ? -1 : 1),
+                  axis1 === "z" ? Math.PI / 2 : 0
+                )
+          }
+          position={translation}
+        >
           <shapeGeometry args={[shape]} />
           <meshBasicMaterial
             color={getColor(color)}

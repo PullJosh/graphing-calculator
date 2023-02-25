@@ -12,6 +12,7 @@ import { getColor } from "../../../utils/tailwindColors";
 extend({ LineMaterial, Line2, Line_: Line });
 declare module "@react-three/fiber" {
   interface ThreeElements {
+    lineGeometry: Object3DNode<LineGeometry, typeof LineGeometry>;
     lineMaterial: Object3DNode<LineMaterial, typeof LineMaterial>;
     line2: Object3DNode<Line2, typeof Line2>;
     line_: Object3DNode<Line, typeof Line>;
@@ -24,13 +25,13 @@ interface ContourProps {
    * correspond to an x/y/z in math space. */
   points: Float32Array;
 
-  /** Color of the contour. */
+  /** Color of the contour */
   color: Color;
 
   /** Width of the contour, or "px" for a hairline contour */
   width?: "px" | number;
 
-  /** Clipping planes to apply to the contour. */
+  /** Clipping planes to apply to the contour */
   clippingPlanes?: Axis[];
 }
 

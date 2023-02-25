@@ -25,6 +25,8 @@ export function __wbg_set_graphbox_y_min(a: number, b: number): void;
 export function __wbg_set_graphbox_y_max(a: number, b: number): void;
 export function graph_equation_to_float_array(a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number): void;
 export function graph_equation_to_float_array_3d(a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number): void;
+export function graph_vector_field(a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number): void;
+export function graph_vector_field_paths(a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number): void;
 export function __wbindgen_malloc(a: number): number;
 export function __wbindgen_realloc(a: number, b: number, c: number): number;
 export function __wbindgen_add_to_stack_pointer(a: number): number;

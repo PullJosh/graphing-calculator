@@ -6,20 +6,6 @@ heap.push(undefined, null, true, false);
 
 function getObject(idx) { return heap[idx]; }
 
-let heap_next = heap.length;
-
-function dropObject(idx) {
-    if (idx < 36) return;
-    heap[idx] = heap_next;
-    heap_next = idx;
-}
-
-function takeObject(idx) {
-    const ret = getObject(idx);
-    dropObject(idx);
-    return ret;
-}
-
 let WASM_VECTOR_LEN = 0;
 
 let cachedUint8Memory0 = new Uint8Array();
@@ -97,6 +83,20 @@ function getInt32Memory0() {
         cachedInt32Memory0 = new Int32Array(wasm.memory.buffer);
     }
     return cachedInt32Memory0;
+}
+
+let heap_next = heap.length;
+
+function dropObject(idx) {
+    if (idx < 36) return;
+    heap[idx] = heap_next;
+    heap_next = idx;
+}
+
+function takeObject(idx) {
+    const ret = getObject(idx);
+    dropObject(idx);
+    return ret;
 }
 
 let cachedFloat64Memory0 = new Float64Array();
@@ -274,6 +274,70 @@ export function graph_equation_to_float_array_3d(math_json, var1, var2, var3, x_
     }
 }
 
+/**
+* @param {any} math_json
+* @param {number} step
+* @param {number} x_min
+* @param {number} x_max
+* @param {number} y_min
+* @param {number} y_max
+* @param {number} z_min
+* @param {number} z_max
+* @param {any} var_values
+* @returns {Float64Array}
+*/
+export function graph_vector_field(math_json, step, x_min, x_max, y_min, y_max, z_min, z_max, var_values) {
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        wasm.graph_vector_field(retptr, addHeapObject(math_json), step, x_min, x_max, y_min, y_max, z_min, z_max, addHeapObject(var_values));
+        var r0 = getInt32Memory0()[retptr / 4 + 0];
+        var r1 = getInt32Memory0()[retptr / 4 + 1];
+        var r2 = getInt32Memory0()[retptr / 4 + 2];
+        var r3 = getInt32Memory0()[retptr / 4 + 3];
+        if (r3) {
+            throw takeObject(r2);
+        }
+        var v0 = getArrayF64FromWasm0(r0, r1).slice();
+        wasm.__wbindgen_free(r0, r1 * 8);
+        return v0;
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+    }
+}
+
+/**
+* @param {any} math_json
+* @param {number} number_of_paths
+* @param {number} path_length
+* @param {number} step_epsilon
+* @param {number} x_min
+* @param {number} x_max
+* @param {number} y_min
+* @param {number} y_max
+* @param {number} z_min
+* @param {number} z_max
+* @param {any} var_values
+* @returns {Float64Array}
+*/
+export function graph_vector_field_paths(math_json, number_of_paths, path_length, step_epsilon, x_min, x_max, y_min, y_max, z_min, z_max, var_values) {
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        wasm.graph_vector_field_paths(retptr, addHeapObject(math_json), number_of_paths, path_length, step_epsilon, x_min, x_max, y_min, y_max, z_min, z_max, addHeapObject(var_values));
+        var r0 = getInt32Memory0()[retptr / 4 + 0];
+        var r1 = getInt32Memory0()[retptr / 4 + 1];
+        var r2 = getInt32Memory0()[retptr / 4 + 2];
+        var r3 = getInt32Memory0()[retptr / 4 + 3];
+        if (r3) {
+            throw takeObject(r2);
+        }
+        var v0 = getArrayF64FromWasm0(r0, r1).slice();
+        wasm.__wbindgen_free(r0, r1 * 8);
+        return v0;
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+    }
+}
+
 function handleError(f, args) {
     try {
         return f.apply(this, args);
@@ -444,10 +508,6 @@ export class GraphBox3D {
     }
 }
 
-export function __wbindgen_object_drop_ref(arg0) {
-    takeObject(arg0);
-};
-
 export function __wbindgen_string_get(arg0, arg1) {
     const obj = getObject(arg1);
     const ret = typeof(obj) === 'string' ? obj : undefined;
@@ -455,6 +515,10 @@ export function __wbindgen_string_get(arg0, arg1) {
     var len0 = WASM_VECTOR_LEN;
     getInt32Memory0()[arg0 / 4 + 1] = len0;
     getInt32Memory0()[arg0 / 4 + 0] = ptr0;
+};
+
+export function __wbindgen_object_drop_ref(arg0) {
+    takeObject(arg0);
 };
 
 export function __wbindgen_number_get(arg0, arg1) {
@@ -540,6 +604,11 @@ export function __wbg_call_97ae9d8645dc388b() { return handleError(function (arg
     const ret = getObject(arg0).call(getObject(arg1));
     return addHeapObject(ret);
 }, arguments) };
+
+export function __wbg_isArray_27c46c67f498e15d(arg0) {
+    const ret = Array.isArray(getObject(arg0));
+    return ret;
+};
 
 export function __wbg_instanceof_ArrayBuffer_e5e48f4762c5610b(arg0) {
     let result;

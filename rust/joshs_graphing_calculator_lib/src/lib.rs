@@ -205,6 +205,123 @@ pub fn graph_equation_to_float_array_3d(
     Ok(float_array)
 }
 
+#[wasm_bindgen]
+pub fn graph_vector_field(
+    math_json: JsValue, // Vec<String>,
+    step: f64,
+    x_min: f64,
+    x_max: f64,
+    y_min: f64,
+    y_max: f64,
+    z_min: f64,
+    z_max: f64,
+    var_values: JsValue, // HashMap<String, f64>,
+) -> Result<Vec<f64>, String> {
+    let math_json: Vec<String> = serde_wasm_bindgen::from_value(math_json).unwrap();
+
+    let mut var_values: HashMap<String, f64> = serde_wasm_bindgen::from_value(var_values).unwrap();
+
+    let expressions = math_json
+        .iter()
+        .map(|s| mathjson_value_to_expression(&serde_json::from_str(s).unwrap()))
+        .collect::<Option<Vec<Box<dyn Expression>>>>()
+        .unwrap();
+
+    let x_min = (x_min / step).floor() as i64;
+    let x_max = (x_max / step).ceil() as i64;
+    let y_min = (y_min / step).floor() as i64;
+    let y_max = (y_max / step).ceil() as i64;
+    let z_min = (z_min / step).floor() as i64;
+    let z_max = (z_max / step).ceil() as i64;
+
+    let capacity: usize = (x_max - x_min + 1) as usize
+        * (y_max - y_min + 1) as usize
+        * (z_max - z_min + 1) as usize
+        * (3 + expressions.len());
+
+    let mut result = vec![0.0; capacity];
+
+    let mut i = 0;
+    for x in x_min..=x_max {
+        var_values.insert("x".to_string(), (x as f64) * step);
+
+        for y in y_min..=y_max {
+            var_values.insert("y".to_string(), (y as f64) * step);
+
+            for z in z_min..=z_max {
+                var_values.insert("z".to_string(), (z as f64) * step);
+
+                result[i + 0] = (x as f64) * step;
+                result[i + 1] = (y as f64) * step;
+                result[i + 2] = (z as f64) * step;
+                i += 3;
+                for expression in &expressions {
+                    result[i] = expression.evaluate(&var_values)?;
+                    i += 1;
+                }
+            }
+        }
+    }
+
+    Ok(result)
+}
+
+#[wasm_bindgen]
+pub fn graph_vector_field_paths(
+    math_json: JsValue, // Vec<String>,
+    number_of_paths: usize,
+    path_length: usize,
+    step_epsilon: f64,
+    x_min: f64,
+    x_max: f64,
+    y_min: f64,
+    y_max: f64,
+    z_min: f64,
+    z_max: f64,
+    var_values: JsValue, // HashMap<String, f64>,
+) -> Result<Vec<f64>, String> {
+    let math_json: Vec<String> = serde_wasm_bindgen::from_value(math_json).unwrap();
+
+    let mut var_values: HashMap<String, f64> = serde_wasm_bindgen::from_value(var_values).unwrap();
+
+    let expressions = math_json
+        .iter()
+        .map(|s| mathjson_value_to_expression(&serde_json::from_str(s).unwrap()))
+        .collect::<Option<Vec<Box<dyn Expression>>>>()
+        .unwrap();
+
+    let mut result = vec![0.0; number_of_paths * path_length * 3];
+    use rand::Rng;
+    let mut rng: rand::rngs::StdRng = rand::SeedableRng::seed_from_u64(0);
+    for i in 0..number_of_paths {
+        let mut x = rng.gen::<f64>() * (x_max - x_min) + x_min;
+        let mut y = rng.gen::<f64>() * (y_max - y_min) + y_min;
+        let mut z = rng.gen::<f64>() * (z_max - z_min) + z_min;
+
+        for j in 0..path_length {
+            var_values.insert("x".to_string(), x);
+            var_values.insert("y".to_string(), y);
+            var_values.insert("z".to_string(), z);
+
+            result[i * path_length * 3 + j * 3 + 0] = x;
+            result[i * path_length * 3 + j * 3 + 1] = y;
+            result[i * path_length * 3 + j * 3 + 2] = z;
+
+            if let Some(expr_x) = expressions.get(0) {
+                x += expr_x.evaluate(&var_values)? * step_epsilon;
+            }
+            if let Some(expr_y) = expressions.get(1) {
+                y += expr_y.evaluate(&var_values)? * step_epsilon;
+            }
+            if let Some(expr_z) = expressions.get(2) {
+                z += expr_z.evaluate(&var_values)? * step_epsilon;
+            }
+        }
+    }
+
+    Ok(result)
+}
+
 pub fn mathjson_value_to_equation(value: &Value) -> Option<Equation> {
     console_error_panic_hook::set_once();
 

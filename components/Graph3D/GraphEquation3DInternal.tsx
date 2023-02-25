@@ -1,5 +1,4 @@
 import { useContext, useMemo } from "react";
-// import { GraphContext3D } from "./Graph3D";
 import { GraphContours3D } from "./GraphContours3D";
 import { useFlatContoursForEquation } from "../../hooks/useFlatContoursForEquation";
 
@@ -13,19 +12,19 @@ import { useClippingPlanes } from "../../hooks/useClippingPlanes";
 import { BackSide, FrontSide } from "three";
 const ce = new ComputeEngine();
 
-interface GraphEquation3DProps {
+interface GraphEquation3DInternalProps {
   equation: string;
   color: "red" | "blue";
   varValues?: Record<string, number>;
   axes?: Axis[];
 }
 
-export function GraphEquation3D({
+export function GraphEquation3DInternal({
   equation,
   color,
   varValues = {},
   axes,
-}: GraphEquation3DProps) {
+}: GraphEquation3DInternalProps) {
   const viewInfo = useContext(Graph3DContext);
   const window = viewInfo.window.value;
 

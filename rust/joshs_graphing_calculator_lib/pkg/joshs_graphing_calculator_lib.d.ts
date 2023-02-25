@@ -30,6 +30,34 @@ export function graph_equation_to_float_array(math_json: string, var1: string, v
 */
 export function graph_equation_to_float_array_3d(math_json: string, var1: string, var2: string, var3: string, x_min: number, x_max: number, y_min: number, y_max: number, z_min: number, z_max: number, var_values: any): Float64Array;
 /**
+* @param {any} math_json
+* @param {number} step
+* @param {number} x_min
+* @param {number} x_max
+* @param {number} y_min
+* @param {number} y_max
+* @param {number} z_min
+* @param {number} z_max
+* @param {any} var_values
+* @returns {Float64Array}
+*/
+export function graph_vector_field(math_json: any, step: number, x_min: number, x_max: number, y_min: number, y_max: number, z_min: number, z_max: number, var_values: any): Float64Array;
+/**
+* @param {any} math_json
+* @param {number} number_of_paths
+* @param {number} path_length
+* @param {number} step_epsilon
+* @param {number} x_min
+* @param {number} x_max
+* @param {number} y_min
+* @param {number} y_max
+* @param {number} z_min
+* @param {number} z_max
+* @param {any} var_values
+* @returns {Float64Array}
+*/
+export function graph_vector_field_paths(math_json: any, number_of_paths: number, path_length: number, step_epsilon: number, x_min: number, x_max: number, y_min: number, y_max: number, z_min: number, z_max: number, var_values: any): Float64Array;
+/**
 */
 export class GraphBox {
   free(): void;

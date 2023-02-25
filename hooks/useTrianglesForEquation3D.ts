@@ -21,8 +21,13 @@ export function useTrianglesForEquation3D(
   ) => {
     let result;
 
+    // TODO: This is a hack to deal with the fact that sometimes GraphEquation3DInternal
+    // sometimes passes fewer than 3 axes, in which case nothing should be graphed.
+    if (var3 === undefined) {
+      return new Float64Array(0);
+    }
+
     try {
-      // console.log("before result");
       result = api.graphEquation3D(
         JSON.stringify(equation),
         var1,
@@ -36,9 +41,7 @@ export function useTrianglesForEquation3D(
         desiredWindow.maxZ,
         varValues
       );
-      // console.log("result promise", result);
       result = await result;
-      // console.log("after result", result);
     } catch (err) {
       console.error("Error while doing 3D graphing work:", err);
       throw err;

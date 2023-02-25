@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState } from "react";
+import { Children, Fragment, ReactNode, useEffect, useState } from "react";
 import classNames from "classnames";
 import dynamic from "next/dynamic";
 import { Graph3D } from "../components/Graph3D/Graph3D";
@@ -8,9 +8,10 @@ import { GraphAxis3D } from "../components/Graph3D/GraphAxis3D";
 import { GraphBoundingBox3D } from "../components/Graph3D/GraphBoundingBox3D";
 import Link from "next/link";
 import { GraphExpression3D } from "../components/Graph3D/GraphExpression3D";
-import { Shape, Vector2 } from "three";
+import { Shape, Vector2, Vector3 } from "three";
 import { Area } from "../components/Graph3D/display/Area";
 import { Axis } from "../types";
+import { GraphVectorField3D } from "../components/Graph3D/GraphVectorField3D";
 
 const MathLiveInput = dynamic(
   () => import("../components/MathLiveInput").then((mod) => mod.MathLiveInput),
@@ -27,6 +28,12 @@ type Item =
       type: "expression";
       expression: string;
       color: "rainbow" | "red" | "blue";
+    }
+  | {
+      type: "vector";
+      showParticles: boolean;
+      expressions: string[];
+      color: "red" | "blue";
     };
 
 type ItemWithId = { id: number } & Item;
@@ -57,19 +64,6 @@ export default function Index() {
       equation: "z=x^2+y^2",
       color: "red",
     },
-    // {
-    //   id: 0,
-    //   type: "equation",
-    //   equation: "y=x^2",
-    //   color: "red",
-    // },
-    // {
-    //   id: 1,
-    //   type: "equation",
-    //   equation: "x^2+y^2=9",
-    //   color: "blue",
-    // },
-    // { id: 2, type: "expression", expression: "x^2+y^2", color: "rainbow" },
   ]);
 
   const setItem = (item: ItemWithId, newItem: ItemWithId) => {
@@ -105,7 +99,7 @@ export default function Index() {
   const [variables, setVariables] = useState<[string, number][]>([]);
   const [slices, setSlices] = useState<
     { id: number; axisVar: string; value: number }[]
-  >([{ id: 0, axisVar: "z", value: 0 }]);
+  >([]);
 
   return (
     <div className="grid grid-cols-[300px,1fr] grid-rows-[auto,1fr] w-screen h-screen">
@@ -142,9 +136,24 @@ export default function Index() {
                 deleteSelf={() => deleteItem(index)}
               />
             )}
+            {item.type === "vector" && (
+              <VectorInput
+                expressions={item.expressions}
+                setExpressions={(newExpressions) => {
+                  setProp(item, "expressions", newExpressions);
+                }}
+                color={item.color}
+                setColor={(newColor) => setProp(item, "color", newColor)}
+                showParticles={item.showParticles}
+                setShowParticles={(newShowParticles) => {
+                  setProp(item, "showParticles", newShowParticles);
+                }}
+                deleteSelf={() => deleteItem(index)}
+              />
+            )}
           </Fragment>
         ))}
-        <div className="flex mt-4 space-x-2 justify-center">
+        <div className="mt-4 text-center">
           <button
             onClick={() =>
               insertItem({
@@ -154,7 +163,7 @@ export default function Index() {
               })
             }
             disabled={items.length >= 4}
-            className="bg-gray-100 border px-2 py-1 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+            className="m-1 bg-gray-100 border px-2 py-1 rounded disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Add equation
           </button>
@@ -167,9 +176,23 @@ export default function Index() {
               })
             }
             disabled={items.length >= 4}
-            className="bg-gray-100 border px-2 py-1 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+            className="m-1 bg-gray-100 border px-2 py-1 rounded disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Add expression
+          </button>
+          <button
+            onClick={() =>
+              insertItem({
+                type: "vector",
+                expressions: ["x", "-y", "z"],
+                color: "blue",
+                showParticles: false,
+              })
+            }
+            disabled={items.length >= 4}
+            className="m-1 bg-gray-100 first-letter:bg-gray-100 border px-2 py-1 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Add vector field
           </button>
         </div>
         <div className="mt-auto space-y-1">
@@ -242,7 +265,7 @@ export default function Index() {
       </div>
       <div className="relative overflow-hidden">
         <Graph3D>
-          {() => {
+          {({ dimension }) => {
             return (
               <>
                 <GraphGrid3D normalAxis="z" />
@@ -259,15 +282,21 @@ export default function Index() {
                       />
                       // <GraphEquation3DShader expression={item.expression} />
                     )}
-                  </Fragment>
-                ))}
-                {items.map((item) => (
-                  <Fragment key={item.id}>
                     {item.type === "equation" && (
                       <GraphEquation3D
                         equation={item.equation}
                         color={item.color}
                         varValues={Object.fromEntries(variables)}
+                      />
+                    )}
+                    {item.type === "vector" && (
+                      <GraphVectorField3D
+                        expressions={item.expressions}
+                        step={dimension.value === "3D" ? 2 : 1}
+                        color={item.color}
+                        varValues={Object.fromEntries(variables)}
+                        showAsCone={dimension.value === "3D"}
+                        showParticles={item.showParticles}
                       />
                     )}
                   </Fragment>
@@ -566,4 +595,102 @@ function useRainbowHue() {
   }, []);
 
   return rainbowHue;
+}
+
+interface VectorInputProps {
+  expressions: string[];
+  setExpressions: (expressions: string[]) => void;
+  color: "red" | "blue";
+  setColor: (color: "red" | "blue") => void;
+  showParticles: boolean;
+  setShowParticles: (showParticles: boolean) => void;
+  deleteSelf: () => void;
+}
+
+function VectorInput({
+  expressions,
+  setExpressions,
+  color,
+  setColor,
+  showParticles,
+  setShowParticles,
+  deleteSelf,
+}: VectorInputProps) {
+  return (
+    <div className="relative flex border-b">
+      <div className="bg-gray-100 p-2 flex flex-col justify-center space-y-1">
+        <button
+          onClick={() => setColor(color === "red" ? "blue" : "red")}
+          className={classNames("block w-6 h-6 rounded-full", {
+            "bg-red-600": color === "red",
+            "bg-blue-600": color === "blue",
+          })}
+        >
+          <span className="sr-only">Change color</span>
+        </button>
+        <input
+          type="checkbox"
+          checked={showParticles}
+          onChange={(event) => setShowParticles(event.target.checked)}
+        />
+      </div>
+      <div className="text-2xl flex items-center select-none">
+        <span>〈</span>
+        <Join separator={<span>, </span>}>
+          {expressions.map((expression, i) => (
+            <MathLiveInput
+              key={i}
+              latex={expression}
+              onChange={(latex) => {
+                setExpressions(
+                  expressions.map((e, j) => (i === j ? latex : e))
+                );
+              }}
+              options={{}}
+              wrapperDivClassName="block text-2xl w-full flex-grow self-center focus-within:outline"
+              className="py-4 outline-none"
+              style={
+                color === "red"
+                  ? "--hue: 0; --selection-background-color-focused: rgb(220 38 38 / 0.2); --selection-color-focused: rgb(127 29 29 / 1);"
+                  : color === "blue"
+                  ? "--hue: 222; --selection-background-color-focused: rgb(37 99 235 / 0.2); --selection-color-focused: rgb(30 58 138 / 1);"
+                  : undefined
+              }
+            />
+          ))}
+        </Join>
+        <span>〉</span>
+      </div>
+      <button
+        onClick={() => deleteSelf()}
+        className="absolute top-0 right-0 w-5 h-5 rounded-bl bg-gray-200 flex items-center justify-center"
+      >
+        <span className="sr-only">Delete</span>
+        <span className="not-sr-only text-xs text-gray-600">X</span>
+      </button>
+    </div>
+  );
+}
+
+interface JoinProps {
+  children: ReactNode;
+  separator: ReactNode;
+}
+
+function Join({ children, separator }: JoinProps) {
+  return (
+    <>
+      {Children.toArray(children)
+        .filter((child) => child)
+        .flatMap(
+          (child, i) =>
+            [
+              child,
+              i < Children.count(children) - 1 && (
+                <Fragment key={`separator-${i}`}>{separator}</Fragment>
+              ),
+            ] as const
+        )}
+    </>
+  );
 }
