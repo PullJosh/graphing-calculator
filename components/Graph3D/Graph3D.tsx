@@ -38,6 +38,7 @@ export const Graph3D = forwardRef<HTMLCanvasElement, Graph3DProps>(
           <uiTunnel.Out />
         </div>
         <Canvas gl={{ localClippingEnabled: true }} ref={ref}>
+          {/* <color attach="background" args={["black"]} /> */}
           <Graph3DInner {...props} UITunnel={uiTunnel.In} />
         </Canvas>
       </>
