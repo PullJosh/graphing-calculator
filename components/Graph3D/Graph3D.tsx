@@ -37,7 +37,11 @@ export const Graph3D = forwardRef<HTMLCanvasElement, Graph3DProps>(
         <div className="absolute top-4 left-4 z-20">
           <uiTunnel.Out />
         </div>
-        <Canvas gl={{ localClippingEnabled: true }} ref={ref}>
+        <Canvas
+          gl={{ localClippingEnabled: true }}
+          ref={ref}
+          className="bg-white dark:bg-gray-900"
+        >
           {/* <color attach="background" args={["black"]} /> */}
           <Graph3DInner {...props} UITunnel={uiTunnel.In} />
         </Canvas>
@@ -93,6 +97,7 @@ interface Graph3DInnerProps {
   defaultCameraType?: CameraType;
   defaultWindowCenter?: [number, number];
   defaultWindowArea?: number;
+  allowPan?: boolean;
   autoRotate?: boolean;
 }
 
@@ -106,6 +111,7 @@ function Graph3DInner({
     : "orthographic",
   defaultWindowCenter = [0, 0],
   defaultWindowArea = 100,
+  allowPan = true,
   autoRotate = false,
 }: Graph3DInnerProps) {
   const viewInfo = useDimensionCamerasAndControls(
@@ -113,6 +119,7 @@ function Graph3DInner({
     defaultCameraType,
     defaultWindowCenter,
     defaultWindowArea,
+    allowPan,
     autoRotate
   );
 
@@ -378,6 +385,7 @@ function useDimensionCamerasAndControls(
   defaultCameraType: CameraType = "perspective",
   defaultWindowCenter: [number, number] = [0, 0],
   defaultWindowArea: number = 100,
+  allowPan: boolean = true,
   autoRotate: boolean = false
 ): ViewInfo {
   if (defaultDimension !== "3D" && defaultCameraType !== "orthographic") {
@@ -395,7 +403,7 @@ function useDimensionCamerasAndControls(
 
   const orbitControls = useOrbitControls(
     defaultCameraType === "perspective" ? pCam : oCam,
-    defaultDimension === "3D",
+    defaultDimension === "3D" && allowPan,
     autoRotate
   );
 
@@ -618,7 +626,7 @@ function useDimensionCamerasAndControls(
           setWindow({ value: to.window });
           setWindowWorldCoordinates({ value: to.windowWorldCoordinates });
 
-          orbitControls.enabled = to.dimension === "3D";
+          orbitControls.enabled = to.dimension === "3D" && allowPan;
 
           onComplete?.();
         },
@@ -637,6 +645,7 @@ function useDimensionCamerasAndControls(
       default3DCameraType,
       updateCameras,
       orbitControls,
+      allowPan,
     ]
   );
 
@@ -815,6 +824,8 @@ function useDimensionCamerasAndControls(
         return;
       }
 
+      if (!allowPan) return;
+
       const [x, y] = dragState.startMouse;
       const dx = event.clientX - x;
       const dy = event.clientY - y;
@@ -850,7 +861,7 @@ function useDimensionCamerasAndControls(
         };
       });
     },
-    [dimension.value, dragState, viewport.height, viewport.width]
+    [dimension.value, dragState, viewport.height, viewport.width, allowPan]
   );
   const onMouseUp = useCallback(() => {
     setDragState(null);

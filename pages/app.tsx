@@ -1,4 +1,11 @@
-import { Children, Fragment, ReactNode, useEffect, useState } from "react";
+import {
+  Children,
+  Fragment,
+  ReactNode,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 import classNames from "classnames";
 import dynamic from "next/dynamic";
 import { Graph3D } from "../components/Graph3D/Graph3D";
@@ -12,6 +19,8 @@ import { Shape, Vector2, Vector3 } from "three";
 import { Area } from "../components/Graph3D/display/Area";
 import { Axis } from "../types";
 import { GraphVectorField3D } from "../components/Graph3D/GraphVectorField3D";
+import { Menu, Transition } from "@headlessui/react";
+import { themeContext } from "./_app";
 
 const MathLiveInput = dynamic(
   () => import("../components/MathLiveInput").then((mod) => mod.MathLiveInput),
@@ -101,6 +110,8 @@ export default function Index() {
     { id: number; axisVar: string; value: number }[]
   >([]);
 
+  const { theme, setTheme } = useContext(themeContext);
+
   return (
     <div className="grid grid-cols-[300px,1fr] grid-rows-[auto,1fr] w-screen h-screen">
       <div className="flex justify-between items-center col-span-full bg-gray-800 px-4 py-3">
@@ -109,9 +120,163 @@ export default function Index() {
             🍪 Josh's Graphing Calculator
           </h1>
         </Link>
-        <span className="text-gray-500">I can't believe it's not Desmos!</span>
+        <button
+          className="w-10 h-10 rounded hover:bg-gray-700"
+          onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+        >
+          <span className="sr-only">Color Theme</span>
+          <SunMoonSvg icon={theme === "light" ? "sun" : "moon"} />
+        </button>
       </div>
-      <div className="flex flex-col border-r shadow-lg">
+      <div className="flex flex-col border-r shadow-lg dark:bg-gray-800 dark:border-0 dark:shadow-none">
+        <div className="bg-gray-100 border-b p-2 flex justify-end">
+          <div className="relative">
+            <Menu>
+              <Menu.Button className="p-1 rounded hover:bg-gray-200 active:bg-gray-300">
+                <span className="sr-only">Add item</span>
+                <span className="not-sr-only">
+                  <svg className="w-6 h-6" viewBox="0 0 24 24">
+                    <line
+                      x1={12}
+                      y1={2}
+                      x2={12}
+                      y2={22}
+                      className="stroke-gray-700"
+                      strokeWidth={3}
+                      strokeLinecap="round"
+                    />
+                    <line
+                      x1={2}
+                      y1={12}
+                      x2={22}
+                      y2={12}
+                      className="stroke-gray-700"
+                      strokeWidth={3}
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </span>
+              </Menu.Button>
+              <Menu.Items
+                as="div"
+                className="absolute z-10 top-full mt-1 right-0 w-48 bg-white shadow-lg rounded-lg p-1 space-y-1"
+              >
+                <Menu.Item>
+                  {({ active }) => (
+                    <button
+                      className={classNames(
+                        "w-full text-left px-2 py-1 rounded active:bg-gray-200",
+                        { "bg-gray-100": active }
+                      )}
+                      onClick={() =>
+                        insertItem({
+                          type: "equation",
+                          equation: "y=x",
+                          color: "red",
+                        })
+                      }
+                    >
+                      Equation
+                    </button>
+                  )}
+                </Menu.Item>
+                <Menu.Item>
+                  {({ active }) => (
+                    <button
+                      className={classNames(
+                        "w-full text-left px-2 py-1 rounded active:bg-gray-200",
+                        { "bg-gray-100": active }
+                      )}
+                      onClick={() =>
+                        insertItem({
+                          type: "expression",
+                          expression: "x^2+y^2",
+                          color: "rainbow",
+                        })
+                      }
+                    >
+                      Expression
+                    </button>
+                  )}
+                </Menu.Item>
+                <Menu.Item>
+                  {({ active }) => (
+                    <button
+                      className={classNames(
+                        "w-full text-left px-2 py-1 rounded active:bg-gray-200",
+                        { "bg-gray-100": active }
+                      )}
+                      onClick={() =>
+                        insertItem({
+                          type: "vector",
+                          expressions: ["x", "-y", "z"],
+                          color: "blue",
+                          showParticles: false,
+                        })
+                      }
+                    >
+                      Vector field
+                    </button>
+                  )}
+                </Menu.Item>
+                <div className="border-b" />
+                <Menu.Item>
+                  {({ active }) => (
+                    <button
+                      className={classNames(
+                        "w-full text-left px-2 py-1 rounded active:bg-gray-200",
+                        { "bg-gray-100": active }
+                      )}
+                      onClick={() => {
+                        const newName = prompt("Variable letter?");
+                        if (
+                          newName &&
+                          !variables.some(([name]) => name === newName)
+                        ) {
+                          setVariables((variables) => [
+                            ...variables,
+                            [newName, 0],
+                          ]);
+                        }
+                      }}
+                    >
+                      Slider
+                    </button>
+                  )}
+                </Menu.Item>
+                <Menu.Item>
+                  {({ active }) => (
+                    <button
+                      className={classNames(
+                        "w-full text-left px-2 py-1 rounded active:bg-gray-200",
+                        { "bg-gray-100": active }
+                      )}
+                      onClick={() => {
+                        const axisVar = prompt("Slice axis (x/y/z)?");
+                        if (axisVar) {
+                          setSlices((slices) => [
+                            ...slices,
+                            {
+                              id:
+                                Math.max(
+                                  -1,
+                                  ...slices.map((slice) => slice.id)
+                                ) + 1,
+                              axisVar,
+                              value: 0,
+                            },
+                          ]);
+                        }
+                      }}
+                    >
+                      Slice
+                    </button>
+                  )}
+                </Menu.Item>
+              </Menu.Items>
+            </Menu>
+          </div>
+        </div>
         {items.map((item, index) => (
           <Fragment key={item.id}>
             {item.type === "equation" && (
@@ -153,49 +318,7 @@ export default function Index() {
             )}
           </Fragment>
         ))}
-        <div className="mt-4 text-center">
-          <button
-            onClick={() =>
-              insertItem({
-                type: "equation",
-                equation: "y=x",
-                color: "red",
-              })
-            }
-            disabled={items.length >= 4}
-            className="m-1 bg-gray-100 border px-2 py-1 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Add equation
-          </button>
-          <button
-            onClick={() =>
-              insertItem({
-                type: "expression",
-                expression: "x^2+y^2",
-                color: "rainbow",
-              })
-            }
-            disabled={items.length >= 4}
-            className="m-1 bg-gray-100 border px-2 py-1 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Add expression
-          </button>
-          <button
-            onClick={() =>
-              insertItem({
-                type: "vector",
-                expressions: ["x", "-y", "z"],
-                color: "blue",
-                showParticles: false,
-              })
-            }
-            disabled={items.length >= 4}
-            className="m-1 bg-gray-100 first-letter:bg-gray-100 border px-2 py-1 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Add vector field
-          </button>
-        </div>
-        <div className="mt-auto space-y-1">
+        <div className="mt-auto space-y-1 mb-2">
           {variables.map(([name, value], index) => (
             <div key={name} className="flex items-center space-x-2 px-2">
               <span>{name}:</span>
@@ -230,37 +353,6 @@ export default function Index() {
               </button>
             </div>
           ))}
-          <div className="flex justify-center space-x-2 p-2">
-            <button
-              onClick={() => {
-                const newName = prompt("Variable letter?");
-                if (newName && !variables.some(([name]) => name === newName)) {
-                  setVariables((variables) => [...variables, [newName, 0]]);
-                }
-              }}
-              className="bg-gray-100 border px-2 py-1 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Add slider
-            </button>
-            <button
-              onClick={() => {
-                const axisVar = prompt("Slice axis (x/y/z)?");
-                if (axisVar) {
-                  setSlices((slices) => [
-                    ...slices,
-                    {
-                      id: Math.max(-1, ...slices.map((slice) => slice.id)) + 1,
-                      axisVar,
-                      value: 0,
-                    },
-                  ]);
-                }
-              }}
-              className="bg-gray-100 border px-2 py-1 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Add slice
-            </button>
-          </div>
         </div>
       </div>
       <div className="relative overflow-hidden">
@@ -324,7 +416,7 @@ export default function Index() {
             {slices.map(({ id, axisVar, value }) => (
               <div
                 key={id}
-                className="bg-gray-900 p-2 space-y-2 rounded-xl relative"
+                className="bg-gray-900 dark:bg-black p-2 space-y-2 rounded-xl relative"
               >
                 <div className="relative w-48 h-48 bg-white rounded overflow-hidden">
                   <button
@@ -337,7 +429,11 @@ export default function Index() {
                   >
                     X
                   </button>
-                  <Graph3D defaultDimension="2D" showControls={false}>
+                  <Graph3D
+                    defaultDimension="2D"
+                    showControls={false}
+                    allowPan={false}
+                  >
                     {() => {
                       const axes = (["x", "y", "z"] as Axis[]).filter(
                         (axis) => axis !== axisVar
@@ -450,8 +546,8 @@ function EquationInput({
   deleteSelf,
 }: EquationInputProps) {
   return (
-    <div className="relative flex border-b">
-      <div className="bg-gray-100 p-2 flex items-center">
+    <div className="relative flex border-b dark:border-gray-900">
+      <div className="bg-gray-100 dark:bg-gray-700 dark:border-r dark:border-gray-800 p-2 flex items-center">
         <button
           onClick={() => setColor(color === "red" ? "blue" : "red")}
           className={classNames("block w-6 h-6 rounded-full", {
@@ -468,7 +564,7 @@ function EquationInput({
           setEquation(latex);
         }}
         options={{}}
-        wrapperDivClassName="block text-2xl w-full flex-grow self-center focus-within:outline"
+        wrapperDivClassName="block text-2xl w-full flex-grow self-center focus-within:outline dark:bg-gray-700 dark:text-gray-100"
         className="px-3 py-4 outline-none"
         style={
           color === "red"
@@ -480,10 +576,12 @@ function EquationInput({
       />
       <button
         onClick={() => deleteSelf()}
-        className="absolute top-0 right-0 w-5 h-5 rounded-bl bg-gray-200 flex items-center justify-center"
+        className="absolute top-0 right-0 w-5 h-5 rounded-bl bg-gray-200 dark:bg-gray-600 flex items-center justify-center"
       >
         <span className="sr-only">Delete</span>
-        <span className="not-sr-only text-xs text-gray-600">X</span>
+        <span className="not-sr-only text-xs text-gray-600 dark:text-gray-300">
+          X
+        </span>
       </button>
     </div>
   );
@@ -692,5 +790,81 @@ function Join({ children, separator }: JoinProps) {
             ] as const
         )}
     </>
+  );
+}
+
+interface SunMoonSvgProps {
+  icon: "sun" | "moon";
+}
+
+function SunMoonSvg({ icon }: SunMoonSvgProps) {
+  const mainCircleRadius = icon === "sun" ? 6 : 10;
+  const minorCircleRadius = icon === "sun" ? 4 : 8;
+  const smallCircleX = icon === "sun" ? 30 : 25;
+  const smallCircleY = icon === "sun" ? 10 : 15;
+
+  const transition = "300ms ease-in-out all";
+
+  return (
+    <svg
+      className="w-10 h-10 stroke-gray-100"
+      fill="none"
+      viewBox="0 0 40 40"
+      strokeWidth={2}
+    >
+      <defs>
+        <mask id="within-major-circle">
+          <circle
+            cx={20}
+            cy={20}
+            r={mainCircleRadius}
+            fill="white"
+            style={{ transition }}
+          />
+        </mask>
+        <mask id="outside-minor-circle">
+          <rect x={0} y={0} width={40} height={40} fill="white" />
+          <circle
+            cx={smallCircleX}
+            cy={smallCircleY}
+            r={minorCircleRadius}
+            fill="black"
+            style={{ transition }}
+          />
+        </mask>
+      </defs>
+      <circle
+        cx={20}
+        cy={20}
+        r={mainCircleRadius}
+        mask="url(#outside-minor-circle)"
+        style={{ transition }}
+      />
+      <circle
+        cx={smallCircleX}
+        cy={smallCircleY}
+        r={minorCircleRadius}
+        mask="url(#within-major-circle)"
+        style={{ transition }}
+      />
+      {[0, 45, 90, 135, 180, 225, 270, 315].map((angle) => (
+        <line
+          key={angle}
+          x1={0}
+          y1={-1}
+          x2={0}
+          y2={0}
+          style={{
+            transform: `
+              translate(20px, 20px)
+              rotate(${angle}deg)
+              translateY(${-((icon === "sun" ? 6 : 8) + 4)}px)
+              scaleY(${icon === "sun" ? 4 : 0})
+            `,
+            transition,
+          }}
+        />
+      ))}
+    </svg>
   );
 }

@@ -38,6 +38,7 @@ export default function RiemannSums() {
             showControls={false}
             defaultWindowCenter={[0, 2]}
             defaultWindowArea={50}
+            allowPan={false}
           >
             {() => (
               <>
@@ -81,6 +82,7 @@ function SharpAreaGuessGame() {
           showControls={false}
           defaultWindowCenter={[0, 1.5]}
           defaultWindowArea={50}
+          allowPan={false}
         >
           {() => (
             <>

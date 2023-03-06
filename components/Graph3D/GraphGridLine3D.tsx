@@ -7,6 +7,9 @@ import { LineMaterial } from "three/examples/jsm/lines/LineMaterial";
 import { useClippingPlanes } from "../../hooks/useClippingPlanes";
 import { Graph3DContext } from "./Graph3D";
 
+import colors from "tailwindcss/colors";
+import { themeContext } from "../../pages/_app";
+
 extend({ LineMaterial, LineGeometry, Line2 });
 declare module "@react-three/fiber" {
   interface ThreeElements {
@@ -30,7 +33,7 @@ export function GraphGridLine3D({
   x,
   y,
   z,
-  color = "#e2e8f0",
+  color,
   width = 1,
   arrows = false,
 }: GraphGridLine3DProps) {
@@ -43,6 +46,11 @@ export function GraphGridLine3D({
     .map(([axis, value]) => (value === null ? axis : null))
     .filter((axis) => axis !== null) as ("x" | "y" | "z")[];
   const clippingPlanes = useClippingPlanes(clippingPlaneAxes);
+
+  const { theme } = useContext(themeContext);
+  if (!color) {
+    color = { light: colors.slate[200], dark: colors.slate[700] }[theme];
+  }
 
   if (x !== null && (x < window.value[0][0] || x > window.value[1][0])) {
     return null;

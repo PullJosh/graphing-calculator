@@ -63,8 +63,8 @@ export function GraphExpression3D({
         ref={materialRef}
         attach="material"
         visible={!!fragmentShaderSource}
-        depthWrite={false}
-        depthTest={false}
+        // depthWrite={false}
+        // depthTest={false}
         // uniforms={{
         //   u_vmin: { value: new Vector2(window[0][0], window[0][1]) },
         //   u_vmax: { value: new Vector2(window[1][0], window[1][1]) },

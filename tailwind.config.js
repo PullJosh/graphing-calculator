@@ -10,6 +10,7 @@ module.exports = {
     "./lib/**/*.{js,ts,jsx,tsx}",
     "./workers/**/*.{js,ts,jsx,tsx}",
   ],
+  darkMode: "class",
   theme: {
     extend: {
       fontFamily: {

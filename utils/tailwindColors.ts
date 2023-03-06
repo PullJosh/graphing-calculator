@@ -1,10 +1,12 @@
 import { Color } from "../types";
 import { Color as ThreeColor } from "three";
 
+import colors from "tailwindcss/colors";
+
 const namedColors = {
-  red: new ThreeColor("rgb(220, 38, 38)"),
-  blue: new ThreeColor("rgb(37, 99, 235)"),
-  black: new ThreeColor("rgb(17, 24, 39)"),
+  red: new ThreeColor(colors.red[600]),
+  blue: new ThreeColor(colors.blue[600]),
+  black: new ThreeColor(colors.gray[900]),
 };
 
 export function getColor(color: Color | ThreeColor): ThreeColor {

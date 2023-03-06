@@ -15,6 +15,7 @@
   "license": "ISC",
   "dependencies": {
     "@cortex-js/compute-engine": "^0.8.0",
+    "@headlessui/react": "^1.7.12",
     "@next/font": "^13.1.1",
     "@react-three/drei": "^9.50.4",
     "@react-three/fiber": "^8.10.0",
