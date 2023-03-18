@@ -12,9 +12,12 @@ interface GraphExpression3DProps {
 
 export function GraphExpression3D({
   expression,
-  varValues = {},
+  varValues: additionalVarValues = {},
 }: GraphExpression3DProps) {
   const mathJSON = useMemo(() => ce.parse(expression), [expression]);
+
+  let { varValues } = useContext(Graph3DContext);
+  varValues = { ...varValues, ...additionalVarValues };
 
   const fragmentShaderSource = useMemo(() => {
     try {
@@ -63,17 +66,7 @@ export function GraphExpression3D({
         ref={materialRef}
         attach="material"
         visible={!!fragmentShaderSource}
-        // depthWrite={false}
-        // depthTest={false}
-        // uniforms={{
-        //   u_vmin: { value: new Vector2(window[0][0], window[0][1]) },
-        //   u_vmax: { value: new Vector2(window[1][0], window[1][1]) },
-        //   ...Object.fromEntries(
-        //     Object.entries(varValues).map(([name, value]) => [name, { value }])
-        //   ),
-        // }}
         vertexShader={vertexShaderSource}
-        // fragmentShader={fragmentShaderSource}
         side={DoubleSide}
       />
     </mesh>

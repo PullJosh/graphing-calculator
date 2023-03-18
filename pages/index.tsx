@@ -4,39 +4,15 @@ import { Graph3D } from "../components/Graph3D/Graph3D";
 import { GraphBoundingBox3D } from "../components/Graph3D/GraphBoundingBox3D";
 import { GraphSurfaceGridMaterial } from "../components/Graph3D/GraphSurfaceGridMaterial";
 import Link from "next/link";
+import { Navigation } from "../components/Navigation";
 
 export default function Index() {
   const time = useTimeSinceMount();
 
   return (
     <div>
-      <div className="bg-yellow-200 py-4">
-        <div className="container mx-auto px-16">
-          <strong>👋 Hey there!</strong> Josh's Graphing Calculator is a{" "}
-          <strong className="text-indigo-700">work-in-progress</strong> tool
-          being created by me,{" "}
-          <Link href="https://joshuapullen.com/" className="underline">
-            Josh Pullen
-          </Link>
-          . Definitely look around and give things a poke, but expect broken and
-          weird behavior sometimes.
-        </div>
-      </div>
-      <nav className="bg-gray-900">
-        <div className="container mx-auto px-16">
-          <div className="flex items-center py-3">
-            <Link href="/" className="text-gray-100 font-bold text-xl">
-              Josh's Graphing Calculator
-            </Link>
-            <Link
-              href="/app"
-              className="ml-auto text-gray-300 text-md border border-gray-500 px-4 py-2 rounded"
-            >
-              Start graphing
-            </Link>
-          </div>
-        </div>
-      </nav>
+      <Navigation />
+
       <div className="bg-gray-100 py-24 relative overflow-hidden">
         <div className="container mx-auto px-16 flex flex-col items-start">
           <div className="relative z-10 space-y-8">

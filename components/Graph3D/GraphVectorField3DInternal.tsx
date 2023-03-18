@@ -206,7 +206,7 @@ export function GraphVectorField3DInternal({
   expressions,
   step = 1,
   color,
-  varValues = {},
+  varValues: additionalVarValues = {},
   showHead = true,
   showTail = false,
   showAsCone = false,
@@ -231,6 +231,9 @@ export function GraphVectorField3DInternal({
     () => expressions.map((expression) => ce.parse(expression)),
     [expressions]
   );
+
+  let { varValues } = useContext(Graph3DContext);
+  varValues = { ...varValues, ...additionalVarValues };
 
   const { origins, vectors, maxLength } = useVectorField(
     mathJSON,

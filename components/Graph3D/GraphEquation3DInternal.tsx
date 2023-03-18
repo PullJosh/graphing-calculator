@@ -22,10 +22,12 @@ interface GraphEquation3DInternalProps {
 export function GraphEquation3DInternal({
   equation,
   color,
-  varValues = {},
+  varValues: additionalVarValues = {},
   axes,
 }: GraphEquation3DInternalProps) {
   const viewInfo = useContext(Graph3DContext);
+  let { varValues } = useContext(Graph3DContext);
+  varValues = { ...varValues, ...additionalVarValues };
   const window = viewInfo.window.value;
 
   const graphWindow: Box3D = {

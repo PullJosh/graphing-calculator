@@ -3,13 +3,14 @@ import { useEffect, useRef, useState } from "react";
 import * as Mathlive from "mathlive";
 import "mathlive/dist/mathlive-fonts.css";
 
-import { ComputeEngine } from "@cortex-js/compute-engine";
+import { BoxedExpression, ComputeEngine } from "@cortex-js/compute-engine";
 import classNames from "classnames";
 const ce = new ComputeEngine();
 
 interface MathLiveInputProps {
   latex: string;
   onChange: (latex: string) => void;
+  onBlur?: (mathJSON: BoxedExpression, latex: string) => void;
   options?: Partial<Mathlive.MathfieldOptions>;
   className?: string;
   style?: string;
@@ -20,6 +21,7 @@ interface MathLiveInputProps {
 export function MathLiveInput({
   latex,
   onChange,
+  onBlur,
   options = {},
   className,
   style,
@@ -48,7 +50,14 @@ export function MathLiveInput({
     );
     mathFieldElement.current.style.cssText = style ?? "";
     elem.oninput = () => onChange(elem.getValue("latex"));
-  }, [div, options, className, style, onChange, latex]);
+    if (onBlur) {
+      elem.onblur = () => {
+        const latex = elem.getValue("latex");
+        const mathJSON = ce.parse(latex);
+        onBlur(mathJSON, latex);
+      };
+    }
+  }, [div, options, className, style, onChange, onBlur, latex]);
 
   useEffect(() => {
     const elem = mathFieldElement.current;

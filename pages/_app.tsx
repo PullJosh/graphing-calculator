@@ -29,7 +29,7 @@ interface ThemeContext {
   setTheme: Dispatch<SetStateAction<ColorTheme>>;
 }
 
-export const themeContext = createContext<ThemeContext>({
+export const ThemeContext = createContext<ThemeContext>({
   theme: "light",
   setTheme: () => {},
 });
@@ -38,7 +38,7 @@ export default function MyApp({ Component, pageProps }: AppProps) {
   const [theme, setTheme] = useState<ColorTheme>("light");
 
   return (
-    <themeContext.Provider value={{ theme, setTheme }}>
+    <ThemeContext.Provider value={{ theme, setTheme }}>
       <div
         className={classNames(
           noto_sans.variable,
@@ -50,6 +50,6 @@ export default function MyApp({ Component, pageProps }: AppProps) {
         <Script src="https://code.jquery.com/jquery-3.6.1.min.js"></Script>
         <Component {...pageProps} />
       </div>
-    </themeContext.Provider>
+    </ThemeContext.Provider>
   );
 }

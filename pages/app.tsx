@@ -1,11 +1,4 @@
-import {
-  Children,
-  Fragment,
-  ReactNode,
-  useContext,
-  useEffect,
-  useState,
-} from "react";
+import { Children, Fragment, ReactNode, useEffect, useState } from "react";
 import classNames from "classnames";
 import dynamic from "next/dynamic";
 import { Graph3D } from "../components/Graph3D/Graph3D";
@@ -13,39 +6,36 @@ import { GraphEquation3D } from "../components/Graph3D/GraphEquation3D";
 import { GraphGrid3D } from "../components/Graph3D/GraphGrid3D";
 import { GraphAxis3D } from "../components/Graph3D/GraphAxis3D";
 import { GraphBoundingBox3D } from "../components/Graph3D/GraphBoundingBox3D";
-import Link from "next/link";
 import { GraphExpression3D } from "../components/Graph3D/GraphExpression3D";
 import { Shape, Vector2, Vector3 } from "three";
 import { Area } from "../components/Graph3D/display/Area";
 import { Axis } from "../types";
 import { GraphVectorField3D } from "../components/Graph3D/GraphVectorField3D";
-import { Menu, Transition } from "@headlessui/react";
-import { themeContext } from "./_app";
+import { Menu } from "@headlessui/react";
+import { Navigation } from "../components/Navigation";
+import { BoxedExpression } from "@cortex-js/compute-engine";
+
+import {
+  Equation,
+  Expression,
+  Table,
+  VectorField,
+} from "../components/MathObjects";
 
 const MathLiveInput = dynamic(
   () => import("../components/MathLiveInput").then((mod) => mod.MathLiveInput),
   { ssr: false }
 );
 
-type Item =
-  | {
-      type: "equation";
-      equation: string;
-      color: "red" | "blue";
-    }
-  | {
-      type: "expression";
-      expression: string;
-      color: "rainbow" | "red" | "blue";
-    }
-  | {
-      type: "vector";
-      showParticles: boolean;
-      expressions: string[];
-      color: "red" | "blue";
-    };
+const mathObjects = [Equation, Expression, Table, VectorField];
 
-type ItemWithId = { id: number } & Item;
+type Item =
+  | Equation.ObjectDescription
+  | Expression.ObjectDescription
+  | Table.ObjectDescription
+  | VectorField.ObjectDescription;
+
+type ItemWithId = { id: number; visible: boolean } & Item;
 
 const shape = new Shape([
   new Vector2(0, 0),
@@ -67,12 +57,7 @@ sliceShape.autoClose = true;
 
 export default function Index() {
   const [items, setItems] = useState<ItemWithId[]>([
-    {
-      id: 0,
-      type: "equation",
-      equation: "z=x^2+y^2",
-      color: "red",
-    },
+    { id: 0, visible: true, ...Equation.defaultProps },
   ]);
 
   const setItem = (item: ItemWithId, newItem: ItemWithId) => {
@@ -95,6 +80,7 @@ export default function Index() {
       const newItem: ItemWithId = {
         ...item,
         id: Math.max(...items.map((item) => item.id)) + 1,
+        visible: true,
       };
 
       return [...items.slice(0, index + 1), newItem, ...items.slice(index + 1)];
@@ -110,23 +96,10 @@ export default function Index() {
     { id: number; axisVar: string; value: number }[]
   >([]);
 
-  const { theme, setTheme } = useContext(themeContext);
-
   return (
     <div className="grid grid-cols-[300px,1fr] grid-rows-[auto,1fr] w-screen h-screen">
-      <div className="flex justify-between items-center col-span-full bg-gray-800 px-4 py-3">
-        <Link href="/">
-          <h1 className="text-gray-100 font-medium text-lg">
-            🍪 Josh's Graphing Calculator
-          </h1>
-        </Link>
-        <button
-          className="w-10 h-10 rounded hover:bg-gray-700"
-          onClick={() => setTheme(theme === "light" ? "dark" : "light")}
-        >
-          <span className="sr-only">Color Theme</span>
-          <SunMoonSvg icon={theme === "light" ? "sun" : "moon"} />
-        </button>
+      <div className="col-span-full">
+        <Navigation width="full" showStartGraphing={false} />
       </div>
       <div className="flex flex-col border-r shadow-lg dark:bg-gray-800 dark:border-0 dark:shadow-none">
         <div className="bg-gray-100 border-b p-2 flex justify-end">
@@ -168,13 +141,7 @@ export default function Index() {
                         "w-full text-left px-2 py-1 rounded active:bg-gray-200",
                         { "bg-gray-100": active }
                       )}
-                      onClick={() =>
-                        insertItem({
-                          type: "equation",
-                          equation: "y=x",
-                          color: "red",
-                        })
-                      }
+                      onClick={() => insertItem({ ...Equation.defaultProps })}
                     >
                       Equation
                     </button>
@@ -187,13 +154,7 @@ export default function Index() {
                         "w-full text-left px-2 py-1 rounded active:bg-gray-200",
                         { "bg-gray-100": active }
                       )}
-                      onClick={() =>
-                        insertItem({
-                          type: "expression",
-                          expression: "x^2+y^2",
-                          color: "rainbow",
-                        })
-                      }
+                      onClick={() => insertItem({ ...Expression.defaultProps })}
                     >
                       Expression
                     </button>
@@ -207,15 +168,23 @@ export default function Index() {
                         { "bg-gray-100": active }
                       )}
                       onClick={() =>
-                        insertItem({
-                          type: "vector",
-                          expressions: ["x", "-y", "z"],
-                          color: "blue",
-                          showParticles: false,
-                        })
+                        insertItem({ ...VectorField.defaultProps })
                       }
                     >
                       Vector field
+                    </button>
+                  )}
+                </Menu.Item>
+                <Menu.Item>
+                  {({ active }) => (
+                    <button
+                      className={classNames(
+                        "w-full text-left px-2 py-1 rounded active:bg-gray-200",
+                        { "bg-gray-100": active }
+                      )}
+                      onClick={() => insertItem({ ...Table.defaultProps })}
+                    >
+                      Table
                     </button>
                   )}
                 </Menu.Item>
@@ -278,45 +247,84 @@ export default function Index() {
           </div>
         </div>
         {items.map((item, index) => (
-          <Fragment key={item.id}>
-            {item.type === "equation" && (
-              <EquationInput
-                equation={item.equation}
-                setEquation={(newEquation) =>
-                  setProp(item, "equation", newEquation)
-                }
-                color={item.color}
-                setColor={(newColor) => setProp(item, "color", newColor)}
-                deleteSelf={() => deleteItem(index)}
-              />
-            )}
-            {item.type === "expression" && (
-              <ExpressionInput
-                expression={item.expression}
-                setExpression={(newExpression) => {
-                  setProp(item, "expression", newExpression);
+          <div
+            key={item.id}
+            className="relative flex border-b dark:border-gray-900"
+          >
+            <div className="bg-gray-100 dark:bg-gray-700 dark:border-r dark:border-gray-800 p-2 flex items-center">
+              <button
+                className="block"
+                onClick={() => {
+                  setItem(item, { ...item, visible: !item.visible });
                 }}
-                color={item.color}
-                setColor={(newColor) => setProp(item, "color", newColor)}
-                deleteSelf={() => deleteItem(index)}
-              />
-            )}
-            {item.type === "vector" && (
-              <VectorInput
-                expressions={item.expressions}
-                setExpressions={(newExpressions) => {
-                  setProp(item, "expressions", newExpressions);
-                }}
-                color={item.color}
-                setColor={(newColor) => setProp(item, "color", newColor)}
-                showParticles={item.showParticles}
-                setShowParticles={(newShowParticles) => {
-                  setProp(item, "showParticles", newShowParticles);
-                }}
-                deleteSelf={() => deleteItem(index)}
-              />
-            )}
-          </Fragment>
+              >
+                <div className="not-sr-only w-7 h-7 rounded-full overflow-hidden grid items-stretch justify-items-stretch relative group">
+                  {item.visible && (
+                    <>
+                      {item.type === "Equation" && <Equation.Icon obj={item} />}
+                      {item.type === "Expression" && (
+                        <Expression.Icon obj={item} />
+                      )}
+                      {item.type === "Table" && <Table.Icon obj={item} />}
+                      {item.type === "Vector Field" && (
+                        <VectorField.Icon obj={item} />
+                      )}
+                    </>
+                  )}
+                  <div
+                    className={classNames(
+                      "absolute inset-0 w-full h-full rounded-full",
+                      {
+                        "hover:bg-gray-700/10": !item.visible,
+                        "hover:bg-gray-700/20": item.visible,
+                      }
+                    )}
+                    style={{
+                      boxShadow: !item.visible
+                        ? "inset 0 0 3px 1px rgba(0, 0, 0, 0.3)"
+                        : undefined,
+                    }}
+                  />
+                </div>
+                <span className="sr-only">Change color</span>
+              </button>
+            </div>
+            <div className="flex-grow grid grid-rows-1 grid-cols-1 justify-items-stretch">
+              {item.type === "Equation" && (
+                <Equation.ContentEditor
+                  obj={item}
+                  setObj={(newObj) => setItem(item, { ...item, ...newObj })}
+                />
+              )}
+              {item.type === "Expression" && (
+                <Expression.ContentEditor
+                  obj={item}
+                  setObj={(newObj) => setItem(item, { ...item, ...newObj })}
+                />
+              )}
+              {item.type === "Table" && (
+                <Table.ContentEditor
+                  obj={item}
+                  setObj={(newObj) => setItem(item, { ...item, ...newObj })}
+                />
+              )}
+              {item.type === "Vector Field" && (
+                <VectorField.ContentEditor
+                  obj={item}
+                  setObj={(newObj) => setItem(item, { ...item, ...newObj })}
+                />
+              )}
+            </div>
+            <button
+              onClick={() => deleteItem(index)}
+              className="absolute top-0 right-0 w-5 h-5 rounded-bl bg-gray-200 dark:bg-gray-600 flex items-center justify-center"
+            >
+              <span className="sr-only">Delete</span>
+              <span className="not-sr-only text-xs text-gray-600 dark:text-gray-300">
+                X
+              </span>
+            </button>
+          </div>
         ))}
         <div className="mt-auto space-y-1 mb-2">
           {variables.map(([name, value], index) => (
@@ -356,7 +364,7 @@ export default function Index() {
         </div>
       </div>
       <div className="relative overflow-hidden">
-        <Graph3D>
+        <Graph3D varValues={Object.fromEntries(variables)}>
           {({ dimension }) => {
             return (
               <>
@@ -365,34 +373,23 @@ export default function Index() {
                 <GraphAxis3D axis="y" />
                 <GraphAxis3D axis="z" />
                 <GraphBoundingBox3D />
-                {items.map((item) => (
-                  <Fragment key={item.id}>
-                    {item.type === "expression" && (
-                      <GraphExpression3D
-                        expression={item.expression}
-                        varValues={Object.fromEntries(variables)}
-                      />
-                      // <GraphEquation3DShader expression={item.expression} />
-                    )}
-                    {item.type === "equation" && (
-                      <GraphEquation3D
-                        equation={item.equation}
-                        color={item.color}
-                        varValues={Object.fromEntries(variables)}
-                      />
-                    )}
-                    {item.type === "vector" && (
-                      <GraphVectorField3D
-                        expressions={item.expressions}
-                        step={dimension.value === "3D" ? 2 : 1}
-                        color={item.color}
-                        varValues={Object.fromEntries(variables)}
-                        showAsCone={dimension.value === "3D"}
-                        showParticles={item.showParticles}
-                      />
-                    )}
-                  </Fragment>
-                ))}
+                {items.map(
+                  (item) =>
+                    item.visible && (
+                      <Fragment key={item.id}>
+                        {item.type === "Expression" && (
+                          <Expression.Output obj={item} />
+                        )}
+                        {item.type === "Equation" && (
+                          <Equation.Output obj={item} />
+                        )}
+                        {item.type === "Table" && <Table.Output obj={item} />}
+                        {item.type === "Vector Field" && (
+                          <VectorField.Output obj={item} />
+                        )}
+                      </Fragment>
+                    )
+                )}
                 {slices.map((slice) => (
                   <Area
                     key={slice.id}
@@ -446,13 +443,12 @@ export default function Index() {
                           <GraphGrid3D />
                           {items.map((item) => (
                             <Fragment key={item.id}>
-                              {item.type === "equation" && (
+                              {item.type === "Equation" && (
                                 <GraphEquation3D
                                   axes={axes}
-                                  equation={item.equation}
+                                  equation={item.latex}
                                   color={item.color}
                                   varValues={{
-                                    ...Object.fromEntries(variables),
                                     [axisVar]: value,
                                   }}
                                 />
@@ -501,22 +497,6 @@ export default function Index() {
                     }
                   />
                 </div>
-                {/* <input
-                  type="range"
-                  min={-5}
-                  max={5}
-                  step={1}
-                  value={value}
-                  onChange={(event) =>
-                    setSlices((slices) =>
-                      slices.map((slice) =>
-                        slice.id === id
-                          ? { ...slice, value: event.target.valueAsNumber }
-                          : slice
-                      )
-                    )
-                  }
-                /> */}
               </div>
             ))}
           </div>
@@ -526,65 +506,27 @@ export default function Index() {
   );
 }
 
-<cylinderGeometry args={[0.6, 0.6, 2, 32, 1, true]} />;
+function getOptimalItemType(
+  mathJSON: BoxedExpression
+): "equation" | "expression" | "vector" {
+  const json = mathJSON.json;
 
-// const lerp = (a: number, b: number, t: number) => a * (1 - t) + b * t;
+  if (Array.isArray(json)) {
+    if (
+      [
+        "Less",
+        "LessEqual",
+        "Equal",
+        "GreaterEqual",
+        "Greater",
+        "NotEqual",
+      ].includes(json[0] as string)
+    ) {
+      return "equation";
+    }
+  }
 
-interface EquationInputProps {
-  equation: string;
-  setEquation: (equation: string) => void;
-  color: "red" | "blue";
-  setColor: (color: "red" | "blue") => void;
-  deleteSelf: () => void;
-}
-
-function EquationInput({
-  equation,
-  setEquation,
-  color,
-  setColor,
-  deleteSelf,
-}: EquationInputProps) {
-  return (
-    <div className="relative flex border-b dark:border-gray-900">
-      <div className="bg-gray-100 dark:bg-gray-700 dark:border-r dark:border-gray-800 p-2 flex items-center">
-        <button
-          onClick={() => setColor(color === "red" ? "blue" : "red")}
-          className={classNames("block w-6 h-6 rounded-full", {
-            "bg-red-600": color === "red",
-            "bg-blue-600": color === "blue",
-          })}
-        >
-          <span className="sr-only">Change color</span>
-        </button>
-      </div>
-      <MathLiveInput
-        latex={equation}
-        onChange={(latex) => {
-          setEquation(latex);
-        }}
-        options={{}}
-        wrapperDivClassName="block text-2xl w-full flex-grow self-center focus-within:outline dark:bg-gray-700 dark:text-gray-100"
-        className="px-3 py-4 outline-none"
-        style={
-          color === "red"
-            ? "--hue: 0; --selection-background-color-focused: rgb(220 38 38 / 0.2); --selection-color-focused: rgb(127 29 29 / 1);"
-            : color === "blue"
-            ? "--hue: 222; --selection-background-color-focused: rgb(37 99 235 / 0.2); --selection-color-focused: rgb(30 58 138 / 1);"
-            : undefined
-        }
-      />
-      <button
-        onClick={() => deleteSelf()}
-        className="absolute top-0 right-0 w-5 h-5 rounded-bl bg-gray-200 dark:bg-gray-600 flex items-center justify-center"
-      >
-        <span className="sr-only">Delete</span>
-        <span className="not-sr-only text-xs text-gray-600 dark:text-gray-300">
-          X
-        </span>
-      </button>
-    </div>
-  );
+  return "expression";
 }
 
 interface ExpressionInputProps {
@@ -790,81 +732,5 @@ function Join({ children, separator }: JoinProps) {
             ] as const
         )}
     </>
-  );
-}
-
-interface SunMoonSvgProps {
-  icon: "sun" | "moon";
-}
-
-function SunMoonSvg({ icon }: SunMoonSvgProps) {
-  const mainCircleRadius = icon === "sun" ? 6 : 10;
-  const minorCircleRadius = icon === "sun" ? 4 : 8;
-  const smallCircleX = icon === "sun" ? 30 : 25;
-  const smallCircleY = icon === "sun" ? 10 : 15;
-
-  const transition = "300ms ease-in-out all";
-
-  return (
-    <svg
-      className="w-10 h-10 stroke-gray-100"
-      fill="none"
-      viewBox="0 0 40 40"
-      strokeWidth={2}
-    >
-      <defs>
-        <mask id="within-major-circle">
-          <circle
-            cx={20}
-            cy={20}
-            r={mainCircleRadius}
-            fill="white"
-            style={{ transition }}
-          />
-        </mask>
-        <mask id="outside-minor-circle">
-          <rect x={0} y={0} width={40} height={40} fill="white" />
-          <circle
-            cx={smallCircleX}
-            cy={smallCircleY}
-            r={minorCircleRadius}
-            fill="black"
-            style={{ transition }}
-          />
-        </mask>
-      </defs>
-      <circle
-        cx={20}
-        cy={20}
-        r={mainCircleRadius}
-        mask="url(#outside-minor-circle)"
-        style={{ transition }}
-      />
-      <circle
-        cx={smallCircleX}
-        cy={smallCircleY}
-        r={minorCircleRadius}
-        mask="url(#within-major-circle)"
-        style={{ transition }}
-      />
-      {[0, 45, 90, 135, 180, 225, 270, 315].map((angle) => (
-        <line
-          key={angle}
-          x1={0}
-          y1={-1}
-          x2={0}
-          y2={0}
-          style={{
-            transform: `
-              translate(20px, 20px)
-              rotate(${angle}deg)
-              translateY(${-((icon === "sun" ? 6 : 8) + 4)}px)
-              scaleY(${icon === "sun" ? 4 : 0})
-            `,
-            transition,
-          }}
-        />
-      ))}
-    </svg>
   );
 }
