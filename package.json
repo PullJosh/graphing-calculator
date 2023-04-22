@@ -14,7 +14,7 @@
   "author": "Josh Pullen",
   "license": "ISC",
   "dependencies": {
-    "@cortex-js/compute-engine": "^0.8.0",
+    "@cortex-js/compute-engine": "^0.12.2",
     "@headlessui/react": "^1.7.12",
     "@next/font": "^13.1.1",
     "@react-three/drei": "^9.50.4",
@@ -23,7 +23,7 @@
     "comlink": "^4.3.1",
     "deep-equal": "^2.2.0",
     "katex": "^0.16.4",
-    "mathlive": "^0.86.0",
+    "mathlive": "^0.91.1",
     "next": "^13.1.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

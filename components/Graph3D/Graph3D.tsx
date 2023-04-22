@@ -26,13 +26,6 @@ import tunnel from "tunnel-rat";
 import classNames from "classnames";
 import { lerp, lerpQuaternion, lerpVec3, lerpWindow } from "../../utils/lerp";
 import { useEffectOnce } from "usehooks-ts";
-import {
-  Bloom,
-  EffectComposer,
-  Outline,
-  Select,
-  Selection,
-} from "@react-three/postprocessing";
 import { ThemeContext } from "../../pages/_app";
 
 type Graph3DProps = Omit<Graph3DInnerProps, "UITunnel">;
@@ -51,7 +44,6 @@ export const Graph3D = forwardRef<HTMLCanvasElement, Graph3DProps>(
           ref={ref}
           className="bg-white dark:bg-black"
         >
-          {/* <color attach="background" args={["black"]} /> */}
           <Graph3DInner {...props} UITunnel={uiTunnel.In} />
         </Canvas>
       </>
@@ -109,6 +101,7 @@ interface Graph3DInnerProps {
   defaultWindowCenter?: [number, number];
   defaultWindowArea?: number;
   allowPan?: boolean;
+  allowZoom?: boolean;
   autoRotate?: boolean;
   varValues?: Record<string, number>;
 }
@@ -124,6 +117,7 @@ function Graph3DInner({
   defaultWindowCenter = [0, 0],
   defaultWindowArea = 100,
   allowPan = true,
+  allowZoom = true,
   autoRotate = false,
   varValues = {},
 }: Graph3DInnerProps) {
@@ -133,6 +127,7 @@ function Graph3DInner({
     defaultWindowCenter,
     defaultWindowArea,
     allowPan,
+    allowZoom,
     autoRotate
   );
 
@@ -155,149 +150,127 @@ function Graph3DInner({
         varValues,
       }}
     >
-      <Selection>
-        <ambientLight />
-        <EffectComposer enabled={theme === "dark"}>
-          {/* <Bloom luminanceThreshold={0} luminanceSmoothing={0.2} height={300} /> */}
-          <Outline blur edgeStrength={100} />
-        </EffectComposer>
-        {/* <pointLight position={[10, 10, 10]} /> */}
-        {/* <pointLight position={[-10, 7, -5]} intensity={0.5} /> */}
-        {/* <SkyBox
-        files={[
-          // "/bluecloud_lf.jpg",
-          // "/bluecloud_rt.jpg",
-          // "/bluecloud_up.jpg",
-          // "/bluecloud_dn.jpg",
-          // "/bluecloud_ft.jpg",
-          // "/bluecloud_bk.jpg",
-          "/clouds1_east.bmp",
-          "/clouds1_west.bmp",
-          "/clouds1_up.bmp",
-          "/clouds1_down.bmp",
-          "/clouds1_north.bmp",
-          "/clouds1_south.bmp",
-        ]}
-      /> */}
-        <Select enabled>{children(viewInfo)}</Select>
-        <UITunnel>
-          {showControls && (
-            <div className="flex space-x-2">
+      <ambientLight />
+      {/* <pointLight position={[10, 10, 10]} /> */}
+      {/* <pointLight position={[-10, 7, -5]} intensity={0.5} /> */}
+      {children(viewInfo)}
+      <UITunnel>
+        {showControls && (
+          <div className="flex space-x-2">
+            <div className="bg-gray-200 p-1 rounded-md flex">
+              <button
+                className={classNames("flex text-sm px-2 py-1", {
+                  "bg-white shadow-sm rounded": dimension.value === "1D",
+                })}
+                onClick={() => setDimension("1D")}
+                disabled={dimension.value === "1D"}
+              >
+                1D
+              </button>
+              <button
+                className={classNames("flex text-sm px-2 py-1", {
+                  "bg-white shadow-sm rounded": dimension.value === "2D",
+                })}
+                onClick={() => setDimension("2D")}
+                disabled={dimension.value === "2D"}
+              >
+                2D
+              </button>
+              <button
+                className={classNames("flex text-sm px-2 py-1", {
+                  "bg-white shadow-sm rounded": dimension.value === "3D",
+                })}
+                onClick={() => setDimension("3D")}
+                disabled={dimension.value === "3D"}
+              >
+                3D
+              </button>
+            </div>
+            {dimension.value === "3D" && (
               <div className="bg-gray-200 p-1 rounded-md flex">
                 <button
                   className={classNames("flex text-sm px-2 py-1", {
-                    "bg-white shadow-sm rounded": dimension.value === "1D",
+                    "bg-white shadow-sm rounded":
+                      cameraType.value === "perspective",
                   })}
-                  onClick={() => setDimension("1D")}
-                  disabled={dimension.value === "1D"}
+                  onClick={() => setCameraType("perspective")}
+                  disabled={cameraType.value === "perspective"}
+                  title="Perspective camera"
                 >
-                  1D
+                  <svg
+                    viewBox="0 0 20 20"
+                    width={20}
+                    height={20}
+                    fill="none"
+                    className="block stroke-gray-600"
+                    strokeWidth={2}
+                    style={{
+                      strokeLinecap: "round",
+                      strokeLinejoin: "round",
+                    }}
+                  >
+                    <g transform="matrix(1,0,0,1,0,-0.75)">
+                      <path d="M2.206,5.5L10,2.5L17.794,5.5L10,10L2.206,5.5Z" />
+                    </g>
+                    <g transform="matrix(-0.5,0.866025,-0.866025,-0.5,23.6603,5.58975)">
+                      <path d="M2.206,5.5L10,2.5L17.794,5.5L10,10L2.206,5.5Z" />
+                    </g>
+                    <g transform="matrix(-0.5,-0.866025,0.866025,-0.5,6.33975,22.9103)">
+                      <path d="M2.206,5.5L10,2.5L17.794,5.5L10,10L2.206,5.5Z" />
+                    </g>
+                  </svg>
                 </button>
                 <button
                   className={classNames("flex text-sm px-2 py-1", {
-                    "bg-white shadow-sm rounded": dimension.value === "2D",
+                    "bg-white shadow-sm rounded":
+                      cameraType.value === "orthographic",
                   })}
-                  onClick={() => setDimension("2D")}
-                  disabled={dimension.value === "2D"}
+                  onClick={() => setCameraType("orthographic")}
+                  disabled={cameraType.value === "orthographic"}
+                  title="Orthographic camera"
                 >
-                  2D
-                </button>
-                <button
-                  className={classNames("flex text-sm px-2 py-1", {
-                    "bg-white shadow-sm rounded": dimension.value === "3D",
-                  })}
-                  onClick={() => setDimension("3D")}
-                  disabled={dimension.value === "3D"}
-                >
-                  3D
+                  <svg
+                    viewBox="0 0 20 20"
+                    width={20}
+                    height={20}
+                    fill="none"
+                    className="block stroke-gray-600"
+                    strokeWidth={2}
+                    style={{
+                      strokeLinecap: "round",
+                      strokeLinejoin: "round",
+                    }}
+                  >
+                    <path d="M2.206,5.5L10,1L17.794,5.5L10,10L2.206,5.5Z" />
+                    <path d="M2.206,14.5L2.206,5.5L10,10L10,19L2.206,14.5Z" />
+                    <path d="M10,10L10,19L17.794,14.5L17.794,5.5L10,10Z" />
+                  </svg>
                 </button>
               </div>
-              {dimension.value === "3D" && (
-                <div className="bg-gray-200 p-1 rounded-md flex">
-                  <button
-                    className={classNames("flex text-sm px-2 py-1", {
-                      "bg-white shadow-sm rounded":
-                        cameraType.value === "perspective",
-                    })}
-                    onClick={() => setCameraType("perspective")}
-                    disabled={cameraType.value === "perspective"}
-                    title="Perspective camera"
-                  >
-                    <svg
-                      viewBox="0 0 20 20"
-                      width={20}
-                      height={20}
-                      fill="none"
-                      className="block stroke-gray-600"
-                      strokeWidth={2}
-                      style={{
-                        strokeLinecap: "round",
-                        strokeLinejoin: "round",
-                      }}
-                    >
-                      <g transform="matrix(1,0,0,1,0,-0.75)">
-                        <path d="M2.206,5.5L10,2.5L17.794,5.5L10,10L2.206,5.5Z" />
-                      </g>
-                      <g transform="matrix(-0.5,0.866025,-0.866025,-0.5,23.6603,5.58975)">
-                        <path d="M2.206,5.5L10,2.5L17.794,5.5L10,10L2.206,5.5Z" />
-                      </g>
-                      <g transform="matrix(-0.5,-0.866025,0.866025,-0.5,6.33975,22.9103)">
-                        <path d="M2.206,5.5L10,2.5L17.794,5.5L10,10L2.206,5.5Z" />
-                      </g>
-                    </svg>
-                  </button>
-                  <button
-                    className={classNames("flex text-sm px-2 py-1", {
-                      "bg-white shadow-sm rounded":
-                        cameraType.value === "orthographic",
-                    })}
-                    onClick={() => setCameraType("orthographic")}
-                    disabled={cameraType.value === "orthographic"}
-                    title="Orthographic camera"
-                  >
-                    <svg
-                      viewBox="0 0 20 20"
-                      width={20}
-                      height={20}
-                      fill="none"
-                      className="block stroke-gray-600"
-                      strokeWidth={2}
-                      style={{
-                        strokeLinecap: "round",
-                        strokeLinejoin: "round",
-                      }}
-                    >
-                      <path d="M2.206,5.5L10,1L17.794,5.5L10,10L2.206,5.5Z" />
-                      <path d="M2.206,14.5L2.206,5.5L10,10L10,19L2.206,14.5Z" />
-                      <path d="M10,10L10,19L17.794,14.5L17.794,5.5L10,10Z" />
-                    </svg>
-                  </button>
-                </div>
-              )}
-              {dimension.value === "3D" && (
-                <div className="bg-gray-200 p-1 rounded-md flex opacity-50">
-                  <button
-                    className={classNames("flex text-sm px-2 py-1", {
-                      "bg-white shadow-sm rounded": false,
-                    })}
-                    disabled={true}
-                  >
-                    1st Person
-                  </button>
-                  <button
-                    className={classNames("flex text-sm px-2 py-1", {
-                      "bg-white shadow-sm rounded": true,
-                    })}
-                    disabled={true}
-                  >
-                    3rd Person
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-        </UITunnel>
-      </Selection>
+            )}
+            {dimension.value === "3D" && (
+              <div className="bg-gray-200 p-1 rounded-md flex opacity-50">
+                <button
+                  className={classNames("flex text-sm px-2 py-1", {
+                    "bg-white shadow-sm rounded": false,
+                  })}
+                  disabled={true}
+                >
+                  1st Person
+                </button>
+                <button
+                  className={classNames("flex text-sm px-2 py-1", {
+                    "bg-white shadow-sm rounded": true,
+                  })}
+                  disabled={true}
+                >
+                  3rd Person
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </UITunnel>
     </Graph3DContext.Provider>
   );
 }
@@ -412,6 +385,7 @@ function useDimensionCamerasAndControls(
   defaultWindowCenter: [number, number] = [0, 0],
   defaultWindowArea: number = 100,
   allowPan: boolean = true,
+  allowZoom: boolean = true,
   autoRotate: boolean = false
 ): ViewInfo {
   if (defaultDimension !== "3D" && defaultCameraType !== "orthographic") {
@@ -909,6 +883,86 @@ function useDimensionCamerasAndControls(
     };
   }, [gl.domElement, onMouseDown, onMouseMove, onMouseUp]);
 
+  // Scroll to zoom
+  const onWheel = useCallback(
+    (event: WheelEvent) => {
+      // if (dimension.value === "3D" && !event.shiftKey) return;
+
+      if (!allowZoom) return;
+
+      const { deltaY } = event;
+      const zoom = 1.1 ** (-deltaY / 50);
+
+      const zoomRange = (
+        min: number,
+        max: number,
+        zoom: number,
+        center = 0.5
+      ) => {
+        const range = max - min;
+        const newRange = range / zoom;
+        const offset = (range - newRange) * center;
+        return [min + offset, max - offset];
+      };
+
+      // const rect = gl.domElement.getBoundingClientRect();
+      // const zoomCenter = [
+      //   (event.clientX - rect.x) / rect.width,
+      //   (event.clientY - rect.y) / rect.height,
+      // ];
+
+      // const zoomCenterCoords = [
+      //   window.value[0][0] +
+      //     zoomCenter[0] * (window.value[1][0] - window.value[0][0]),
+      //   window.value[0][1] +
+      //     zoomCenter[1] * (window.value[1][1] - window.value[0][1]),
+      // ];
+
+      setWindow((window) => {
+        if (window.from !== undefined || window.to !== undefined) {
+          // Currently animating; don't also zoom
+          return window;
+        }
+
+        const [minX, maxX] = zoomRange(
+          window.value[0][0],
+          window.value[1][0],
+          zoom
+        );
+        const [minY, maxY] = zoomRange(
+          window.value[0][1],
+          window.value[1][1],
+          zoom
+        );
+        const [minZ, maxZ] = zoomRange(
+          window.value[0][2],
+          window.value[1][2],
+          zoom
+        );
+
+        return {
+          value: [
+            [minX, minY, minZ],
+            [maxX, maxY, maxZ],
+          ],
+        };
+      });
+
+      event.preventDefault();
+    },
+    [dimension.value, allowZoom]
+  );
+
+  useEffect(() => {
+    const canvas = gl.domElement;
+
+    canvas.addEventListener("wheel", onWheel);
+
+    return () => {
+      canvas.removeEventListener("wheel", onWheel);
+    };
+  }, [gl.domElement, onWheel]);
+
   return {
     dimension,
     cameraType,
@@ -1096,21 +1150,39 @@ function useOrbitControls(
 }
 
 interface SkyBoxProps {
-  files: [string, string, string, string, string, string];
+  files: [string, string, string, string, string, string] | null;
 }
 
-function SkyBox({ files }: SkyBoxProps) {
-  const { scene } = useThree();
+function useMemoizedFileNames(
+  passedFiles: SkyBoxProps["files"]
+): SkyBoxProps["files"] {
+  const [files, setFiles] = useState(passedFiles);
 
-  const texture = useMemo(() => {
-    const loader = new CubeTextureLoader();
-    return loader.load(files);
-  }, [files]);
-
-  // Set the scene background property to the resulting texture.
   useEffect(() => {
-    scene.background = texture;
-  }, [scene, texture]);
+    if (passedFiles === null) {
+      if (files !== null) {
+        setFiles(null);
+      }
+      return;
+    }
 
-  return null;
+    if (files === null) {
+      setFiles(passedFiles);
+      return;
+    }
+
+    let isSame = true;
+    for (let i = 0; i < files.length; i++) {
+      if (passedFiles[i] !== files[i]) {
+        isSame = false;
+        break;
+      }
+    }
+
+    if (!isSame) {
+      setFiles(passedFiles);
+    }
+  }, [files, passedFiles]);
+
+  return files;
 }

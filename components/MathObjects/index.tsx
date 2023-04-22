@@ -80,5 +80,3 @@ const objects = [
 ];
 
 const object = objects[0];
-
-console.log(<object.type.Output settings={object.settings} />);

@@ -9,6 +9,7 @@ const CMUSerif = new URL(
 interface GraphText3DProps {
   children: string;
   position?: Vector3;
+  font?: "sans-serif" | "math";
   fontSize?: number;
   color?: Color | string;
   opacity?: number;
@@ -17,6 +18,7 @@ interface GraphText3DProps {
 export function GraphText3D({
   children,
   position = new Vector3(0, 0, 0),
+  font = "math",
   fontSize = 0.1,
   color = "black",
   opacity = 1,
@@ -24,7 +26,7 @@ export function GraphText3D({
   return (
     <Billboard follow={true} position={position}>
       <Text
-        font={CMUSerif.href}
+        font={font === "math" ? CMUSerif.href : undefined}
         fontSize={fontSize}
         color={color}
         fillOpacity={opacity}

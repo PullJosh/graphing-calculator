@@ -32,7 +32,6 @@ export function useWorkQueue<A extends any[], T>(
 
     async function performWork(...args: A) {
       try {
-        console.log("Performing work", args, resultArgs);
         const timeout = new Promise<T>((resolve) =>
           setTimeout(() => resolve(defaultValue), timeoutDuration)
         );

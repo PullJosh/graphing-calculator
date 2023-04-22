@@ -1,19 +1,15 @@
-import { Children, Fragment, ReactNode, useEffect, useState } from "react";
+import { Fragment, useState } from "react";
 import classNames from "classnames";
-import dynamic from "next/dynamic";
 import { Graph3D } from "../components/Graph3D/Graph3D";
 import { GraphEquation3D } from "../components/Graph3D/GraphEquation3D";
 import { GraphGrid3D } from "../components/Graph3D/GraphGrid3D";
 import { GraphAxis3D } from "../components/Graph3D/GraphAxis3D";
 import { GraphBoundingBox3D } from "../components/Graph3D/GraphBoundingBox3D";
-import { GraphExpression3D } from "../components/Graph3D/GraphExpression3D";
-import { Shape, Vector2, Vector3 } from "three";
+import { Shape, Vector2 } from "three";
 import { Area } from "../components/Graph3D/display/Area";
 import { Axis } from "../types";
-import { GraphVectorField3D } from "../components/Graph3D/GraphVectorField3D";
 import { Menu } from "@headlessui/react";
 import { Navigation } from "../components/Navigation";
-import { BoxedExpression } from "@cortex-js/compute-engine";
 
 import {
   Equation,
@@ -22,12 +18,7 @@ import {
   VectorField,
 } from "../components/MathObjects";
 
-const MathLiveInput = dynamic(
-  () => import("../components/MathLiveInput").then((mod) => mod.MathLiveInput),
-  { ssr: false }
-);
-
-const mathObjects = [Equation, Expression, Table, VectorField];
+const mathObjects = [Equation, Expression, Table, VectorField] as const;
 
 type Item =
   | Equation.ObjectDescription
@@ -60,19 +51,11 @@ export default function Index() {
     { id: 0, visible: true, ...Equation.defaultProps },
   ]);
 
-  const setItem = (item: ItemWithId, newItem: ItemWithId) => {
+  const setItem = (itemId: number, newItem: ItemWithId) => {
     setItems((items) => {
-      const index = items.indexOf(item);
+      const index = items.findIndex((item) => item.id === itemId);
       return [...items.slice(0, index), newItem, ...items.slice(index + 1)];
     });
-  };
-
-  const setProp = <T extends ItemWithId, PropName extends keyof T>(
-    item: T,
-    propName: PropName,
-    value: T[PropName]
-  ) => {
-    setItem(item, { ...item, [propName]: value });
   };
 
   const insertItem = (item: Item, index = items.length) => {
@@ -134,60 +117,21 @@ export default function Index() {
                 as="div"
                 className="absolute z-10 top-full mt-1 right-0 w-48 bg-white shadow-lg rounded-lg p-1 space-y-1"
               >
-                <Menu.Item>
-                  {({ active }) => (
-                    <button
-                      className={classNames(
-                        "w-full text-left px-2 py-1 rounded active:bg-gray-200",
-                        { "bg-gray-100": active }
-                      )}
-                      onClick={() => insertItem({ ...Equation.defaultProps })}
-                    >
-                      Equation
-                    </button>
-                  )}
-                </Menu.Item>
-                <Menu.Item>
-                  {({ active }) => (
-                    <button
-                      className={classNames(
-                        "w-full text-left px-2 py-1 rounded active:bg-gray-200",
-                        { "bg-gray-100": active }
-                      )}
-                      onClick={() => insertItem({ ...Expression.defaultProps })}
-                    >
-                      Expression
-                    </button>
-                  )}
-                </Menu.Item>
-                <Menu.Item>
-                  {({ active }) => (
-                    <button
-                      className={classNames(
-                        "w-full text-left px-2 py-1 rounded active:bg-gray-200",
-                        { "bg-gray-100": active }
-                      )}
-                      onClick={() =>
-                        insertItem({ ...VectorField.defaultProps })
-                      }
-                    >
-                      Vector field
-                    </button>
-                  )}
-                </Menu.Item>
-                <Menu.Item>
-                  {({ active }) => (
-                    <button
-                      className={classNames(
-                        "w-full text-left px-2 py-1 rounded active:bg-gray-200",
-                        { "bg-gray-100": active }
-                      )}
-                      onClick={() => insertItem({ ...Table.defaultProps })}
-                    >
-                      Table
-                    </button>
-                  )}
-                </Menu.Item>
+                {mathObjects.map((object) => (
+                  <Menu.Item key={object.spec.name}>
+                    {({ active }) => (
+                      <button
+                        className={classNames(
+                          "w-full text-left px-2 py-1 rounded active:bg-gray-200",
+                          { "bg-gray-100": active }
+                        )}
+                        onClick={() => insertItem({ ...object.defaultProps })}
+                      >
+                        {object.spec.name}
+                      </button>
+                    )}
+                  </Menu.Item>
+                ))}
                 <div className="border-b" />
                 <Menu.Item>
                   {({ active }) => (
@@ -246,86 +190,66 @@ export default function Index() {
             </Menu>
           </div>
         </div>
-        {items.map((item, index) => (
-          <div
-            key={item.id}
-            className="relative flex border-b dark:border-gray-900"
-          >
-            <div className="bg-gray-100 dark:bg-gray-700 dark:border-r dark:border-gray-800 p-2 flex items-center">
+        {items.map((item, index) => {
+          const object = mathObjects.find(
+            (object) => object.spec.name === item.type
+          )!;
+
+          const Icon = object.Icon as any;
+          const ContentEditor = object.ContentEditor as any;
+
+          return (
+            <div
+              key={item.id}
+              className="relative flex border-b dark:border-gray-900"
+            >
+              <div className="bg-gray-100 dark:bg-gray-700 dark:border-r dark:border-gray-800 p-2 flex items-center">
+                <button
+                  className="block"
+                  onClick={() => {
+                    setItem(item.id, { ...item, visible: !item.visible });
+                  }}
+                >
+                  <div className="not-sr-only w-7 h-7 rounded-full overflow-hidden grid items-stretch justify-items-stretch relative group">
+                    {item.visible && <Icon obj={item} />}
+                    <div
+                      className={classNames(
+                        "absolute inset-0 w-full h-full rounded-full",
+                        {
+                          "hover:bg-gray-700/10": !item.visible,
+                          "hover:bg-gray-700/20": item.visible,
+                        }
+                      )}
+                      style={{
+                        boxShadow: !item.visible
+                          ? "inset 0 0 3px 1px rgba(0, 0, 0, 0.3)"
+                          : undefined,
+                      }}
+                    />
+                  </div>
+                  <span className="sr-only">Change color</span>
+                </button>
+              </div>
+              <div className="flex-grow grid grid-rows-1 grid-cols-1 justify-items-stretch">
+                <ContentEditor
+                  obj={item}
+                  setObj={(newObj: Item) =>
+                    setItem(item.id, { ...item, ...newObj })
+                  }
+                />
+              </div>
               <button
-                className="block"
-                onClick={() => {
-                  setItem(item, { ...item, visible: !item.visible });
-                }}
+                onClick={() => deleteItem(index)}
+                className="absolute top-0 right-0 w-5 h-5 rounded-bl bg-gray-200 dark:bg-gray-600 flex items-center justify-center"
               >
-                <div className="not-sr-only w-7 h-7 rounded-full overflow-hidden grid items-stretch justify-items-stretch relative group">
-                  {item.visible && (
-                    <>
-                      {item.type === "Equation" && <Equation.Icon obj={item} />}
-                      {item.type === "Expression" && (
-                        <Expression.Icon obj={item} />
-                      )}
-                      {item.type === "Table" && <Table.Icon obj={item} />}
-                      {item.type === "Vector Field" && (
-                        <VectorField.Icon obj={item} />
-                      )}
-                    </>
-                  )}
-                  <div
-                    className={classNames(
-                      "absolute inset-0 w-full h-full rounded-full",
-                      {
-                        "hover:bg-gray-700/10": !item.visible,
-                        "hover:bg-gray-700/20": item.visible,
-                      }
-                    )}
-                    style={{
-                      boxShadow: !item.visible
-                        ? "inset 0 0 3px 1px rgba(0, 0, 0, 0.3)"
-                        : undefined,
-                    }}
-                  />
-                </div>
-                <span className="sr-only">Change color</span>
+                <span className="sr-only">Delete</span>
+                <span className="not-sr-only text-xs text-gray-600 dark:text-gray-300">
+                  X
+                </span>
               </button>
             </div>
-            <div className="flex-grow grid grid-rows-1 grid-cols-1 justify-items-stretch">
-              {item.type === "Equation" && (
-                <Equation.ContentEditor
-                  obj={item}
-                  setObj={(newObj) => setItem(item, { ...item, ...newObj })}
-                />
-              )}
-              {item.type === "Expression" && (
-                <Expression.ContentEditor
-                  obj={item}
-                  setObj={(newObj) => setItem(item, { ...item, ...newObj })}
-                />
-              )}
-              {item.type === "Table" && (
-                <Table.ContentEditor
-                  obj={item}
-                  setObj={(newObj) => setItem(item, { ...item, ...newObj })}
-                />
-              )}
-              {item.type === "Vector Field" && (
-                <VectorField.ContentEditor
-                  obj={item}
-                  setObj={(newObj) => setItem(item, { ...item, ...newObj })}
-                />
-              )}
-            </div>
-            <button
-              onClick={() => deleteItem(index)}
-              className="absolute top-0 right-0 w-5 h-5 rounded-bl bg-gray-200 dark:bg-gray-600 flex items-center justify-center"
-            >
-              <span className="sr-only">Delete</span>
-              <span className="not-sr-only text-xs text-gray-600 dark:text-gray-300">
-                X
-              </span>
-            </button>
-          </div>
-        ))}
+          );
+        })}
         <div className="mt-auto space-y-1 mb-2">
           {variables.map(([name, value], index) => (
             <div key={name} className="flex items-center space-x-2 px-2">
@@ -364,32 +288,29 @@ export default function Index() {
         </div>
       </div>
       <div className="relative overflow-hidden">
-        <Graph3D varValues={Object.fromEntries(variables)}>
+        <Graph3D
+          varValues={Object.fromEntries(variables)}
+          defaultDimension="2D"
+        >
           {({ dimension }) => {
             return (
               <>
-                <GraphGrid3D normalAxis="z" />
+                {!items.some((item) => item.type === "Expression") && (
+                  <GraphGrid3D normalAxis="z" />
+                )}
                 <GraphAxis3D axis="x" />
                 <GraphAxis3D axis="y" />
                 <GraphAxis3D axis="z" />
                 <GraphBoundingBox3D />
-                {items.map(
-                  (item) =>
-                    item.visible && (
-                      <Fragment key={item.id}>
-                        {item.type === "Expression" && (
-                          <Expression.Output obj={item} />
-                        )}
-                        {item.type === "Equation" && (
-                          <Equation.Output obj={item} />
-                        )}
-                        {item.type === "Table" && <Table.Output obj={item} />}
-                        {item.type === "Vector Field" && (
-                          <VectorField.Output obj={item} />
-                        )}
-                      </Fragment>
-                    )
-                )}
+                {items.map((item) => {
+                  const object = mathObjects.find(
+                    (object) => object.spec.name === item.type
+                  )!;
+
+                  const Output = object.Output as any;
+
+                  return item.visible && <Output obj={item} key={item.id} />;
+                })}
                 {slices.map((slice) => (
                   <Area
                     key={slice.id}
@@ -503,234 +424,5 @@ export default function Index() {
         )}
       </div>
     </div>
-  );
-}
-
-function getOptimalItemType(
-  mathJSON: BoxedExpression
-): "equation" | "expression" | "vector" {
-  const json = mathJSON.json;
-
-  if (Array.isArray(json)) {
-    if (
-      [
-        "Less",
-        "LessEqual",
-        "Equal",
-        "GreaterEqual",
-        "Greater",
-        "NotEqual",
-      ].includes(json[0] as string)
-    ) {
-      return "equation";
-    }
-  }
-
-  return "expression";
-}
-
-interface ExpressionInputProps {
-  expression: string;
-  setExpression: (expression: string) => void;
-  color: "rainbow" | "red" | "blue";
-  setColor: (color: "rainbow" | "red" | "blue") => void;
-  deleteSelf: () => void;
-}
-
-function ExpressionInput({
-  expression,
-  setExpression,
-  color,
-  setColor,
-  deleteSelf,
-}: ExpressionInputProps) {
-  const rainbowHue = useRainbowHue();
-
-  const colorOptions = ["red", "blue", "rainbow"] as const;
-
-  return (
-    <div className="relative flex border-b">
-      <div className="bg-gray-100 p-2 flex items-center">
-        <button
-          onClick={() =>
-            setColor(
-              colorOptions[
-                (colorOptions.indexOf(color) + 1) % colorOptions.length
-              ]
-            )
-          }
-          className={classNames("block w-6 h-6 rounded-full", {
-            "bg-red-600": color === "red",
-            "bg-blue-600": color === "blue",
-          })}
-          style={{
-            backgroundImage:
-              color === "rainbow"
-                ? `conic-gradient(
-                    rgba(255, 0, 0, 1) 0%,
-                    rgba(255, 154, 0, 1) 10%,
-                    rgba(208, 222, 33, 1) 20%,
-                    rgba(79, 220, 74, 1) 30%,
-                    rgba(63, 218, 216, 1) 40%,
-                    rgba(47, 201, 226, 1) 50%,
-                    rgba(28, 127, 238, 1) 60%,
-                    rgba(95, 21, 242, 1) 70%,
-                    rgba(186, 12, 248, 1) 80%,
-                    rgba(251, 7, 217, 1) 90%,
-                    rgba(255, 0, 0, 1) 100%
-                  )`
-                : undefined,
-          }}
-        >
-          <span className="sr-only">Change color</span>
-        </button>
-      </div>
-      <MathLiveInput
-        latex={expression}
-        onChange={(latex) => {
-          setExpression(latex);
-        }}
-        options={{}}
-        wrapperDivClassName="block text-2xl w-full flex-grow self-stretch focus-within:outline"
-        className="px-3 py-4 outline-none"
-        style={
-          color === "rainbow"
-            ? `--hue: ${rainbowHue}; --selection-background-color-focused: hsla(${rainbowHue}, 100%, 50%, 0.2); --selection-color-focused: hsl(${rainbowHue}, 100%, 25%);`
-            : color === "red"
-            ? "--hue: 0; --selection-background-color-focused: rgb(220 38 38 / 0.2); --selection-color-focused: rgb(127 29 29 / 1);"
-            : color === "blue"
-            ? "--hue: 222; --selection-background-color-focused: rgb(37 99 235 / 0.2); --selection-color-focused: rgb(30 58 138 / 1);"
-            : undefined
-        }
-      />
-      <button
-        onClick={() => deleteSelf()}
-        className="absolute top-0 right-0 w-5 h-5 rounded-bl bg-gray-200 flex items-center justify-center"
-      >
-        <span className="sr-only">Delete</span>
-        <span className="not-sr-only text-xs text-gray-600">X</span>
-      </button>
-    </div>
-  );
-}
-
-function useRainbowHue() {
-  const [rainbowHue, setRainbowHue] = useState(0);
-  useEffect(() => {
-    let done = false;
-
-    function updateSelectionColor() {
-      if (done) return;
-      requestAnimationFrame(updateSelectionColor);
-
-      const t = (Date.now() / 4000) % 1;
-      setRainbowHue(t * 360);
-    }
-
-    updateSelectionColor();
-
-    return () => {
-      done = true;
-    };
-  }, []);
-
-  return rainbowHue;
-}
-
-interface VectorInputProps {
-  expressions: string[];
-  setExpressions: (expressions: string[]) => void;
-  color: "red" | "blue";
-  setColor: (color: "red" | "blue") => void;
-  showParticles: boolean;
-  setShowParticles: (showParticles: boolean) => void;
-  deleteSelf: () => void;
-}
-
-function VectorInput({
-  expressions,
-  setExpressions,
-  color,
-  setColor,
-  showParticles,
-  setShowParticles,
-  deleteSelf,
-}: VectorInputProps) {
-  return (
-    <div className="relative flex border-b">
-      <div className="bg-gray-100 p-2 flex flex-col justify-center space-y-1">
-        <button
-          onClick={() => setColor(color === "red" ? "blue" : "red")}
-          className={classNames("block w-6 h-6 rounded-full", {
-            "bg-red-600": color === "red",
-            "bg-blue-600": color === "blue",
-          })}
-        >
-          <span className="sr-only">Change color</span>
-        </button>
-        <input
-          type="checkbox"
-          checked={showParticles}
-          onChange={(event) => setShowParticles(event.target.checked)}
-        />
-      </div>
-      <div className="text-2xl flex items-center select-none">
-        <span>〈</span>
-        <Join separator={<span>, </span>}>
-          {expressions.map((expression, i) => (
-            <MathLiveInput
-              key={i}
-              latex={expression}
-              onChange={(latex) => {
-                setExpressions(
-                  expressions.map((e, j) => (i === j ? latex : e))
-                );
-              }}
-              options={{}}
-              wrapperDivClassName="block text-2xl w-full flex-grow self-center focus-within:outline"
-              className="py-4 outline-none"
-              style={
-                color === "red"
-                  ? "--hue: 0; --selection-background-color-focused: rgb(220 38 38 / 0.2); --selection-color-focused: rgb(127 29 29 / 1);"
-                  : color === "blue"
-                  ? "--hue: 222; --selection-background-color-focused: rgb(37 99 235 / 0.2); --selection-color-focused: rgb(30 58 138 / 1);"
-                  : undefined
-              }
-            />
-          ))}
-        </Join>
-        <span>〉</span>
-      </div>
-      <button
-        onClick={() => deleteSelf()}
-        className="absolute top-0 right-0 w-5 h-5 rounded-bl bg-gray-200 flex items-center justify-center"
-      >
-        <span className="sr-only">Delete</span>
-        <span className="not-sr-only text-xs text-gray-600">X</span>
-      </button>
-    </div>
-  );
-}
-
-interface JoinProps {
-  children: ReactNode;
-  separator: ReactNode;
-}
-
-function Join({ children, separator }: JoinProps) {
-  return (
-    <>
-      {Children.toArray(children)
-        .filter((child) => child)
-        .flatMap(
-          (child, i) =>
-            [
-              child,
-              i < Children.count(children) - 1 && (
-                <Fragment key={`separator-${i}`}>{separator}</Fragment>
-              ),
-            ] as const
-        )}
-    </>
   );
 }

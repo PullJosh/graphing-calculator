@@ -53,7 +53,6 @@ export function GraphExpression3D({
 
   return (
     <mesh
-      renderOrder={-1000}
       onUpdate={(self) => {
         self.rotation.x = -Math.PI / 2;
       }}
@@ -63,6 +62,8 @@ export function GraphExpression3D({
         args={[wwc[1][0] - wwc[0][0], wwc[1][1] - wwc[0][1], 1, 1]}
       />
       <shaderMaterial
+        polygonOffset={true}
+        polygonOffsetFactor={50}
         ref={materialRef}
         attach="material"
         visible={!!fragmentShaderSource}
@@ -92,7 +93,8 @@ class ExpressionError extends Error {
 const getFragmentShaderSource = (
   expression: BoxedExpression,
   varValues: Record<string, number>
-) => `
+) => {
+  return `
   varying vec2 vUv;
 
   uniform vec2 u_vmin;
@@ -107,12 +109,50 @@ const getFragmentShaderSource = (
     return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
   }
 
+  vec3 hsl2rgb(vec3 c) {
+    vec3 rgb = clamp(abs(mod(c.x * 6.0 + vec3(0.0, 4.0, 2.0), 6.0) - 3.0) - 1.0, 0.0, 1.0);
+    rgb = rgb * rgb * (3.0 - 2.0 * rgb);
+    return c.z + c.y * (rgb - 0.5) * (1.0 - abs(2.0 * c.z - 1.0));
+  }
+
   void main() {
     vec2 pos = mix(u_vmin, u_vmax, vUv);
     float value = ${nodeToGL(expression.json)};
-    gl_FragColor = vec4(hsv2rgb(vec3(value, 1.0, 1.0)), 1.0);
+
+    pos.x += 0.0001;
+    float rightValue = ${nodeToGL(expression.json)};
+    pos.x -= 0.0002;
+    float leftValue = ${nodeToGL(expression.json)};
+    pos.x += 0.0001;
+
+    pos.y += 0.0001;
+    float topValue = ${nodeToGL(expression.json)};
+    pos.y -= 0.0002;
+    float bottomValue = ${nodeToGL(expression.json)};
+    pos.y += 0.0001;
+
+    float xDiffMath = 0.0002;
+    float yDiffMath = 0.0002;
+    float xDiffScreen = xDiffMath / abs(u_vmax.x - u_vmin.x);
+    float yDiffScreen = yDiffMath / abs(u_vmax.y - u_vmin.y);
+
+    vec2 gradient = vec2(
+      (rightValue - leftValue) / xDiffScreen,
+      (topValue - bottomValue) / yDiffScreen
+    );
+    float d = max(abs(gradient.x), abs(gradient.y));
+
+    float saturation = 1.0 / (0.00000005 * pow(d, 3.0) + 1.0);
+    // float saturation = 1.0;
+
+    float grayWaveValue = sin(700.0 * dot(vUv - vec2(0.5, 0.5), normalize(gradient)) * 3.141592653589);
+    // float lightness = 0.5 + (0.4 * grayWaveValue) * (1.0 - saturation);
+    float lightness = 0.5;
+
+    gl_FragColor = vec4(hsl2rgb(vec3(value, saturation, lightness)), 1.0);
   }
 `;
+};
 
 const nodeToGL = (node: BoxedExpression["json"]): string => {
   const symbolToGL = (symbol: string) => {

@@ -38,7 +38,6 @@ export function ContentEditor({ obj, setObj }: ContentEditorProps) {
             onChange={(newLatex) => {
               setComponent(i, newLatex);
             }}
-            options={{}}
             wrapperDivClassName="block text-2xl self-center focus-within:outline dark:bg-gray-700 dark:text-gray-100"
             className="px-0 py-4 outline-none"
           />

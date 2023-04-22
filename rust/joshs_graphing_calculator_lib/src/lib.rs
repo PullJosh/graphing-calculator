@@ -401,6 +401,10 @@ fn mathjson_value_to_expression(value: &Value) -> Option<Box<dyn Expression>> {
                 "Cos" => Some(Box::new(Cos::new(operands[0].clone()))),
                 "Tan" => Some(Box::new(Tan::new(operands[0].clone()))),
                 "Abs" => Some(Box::new(Abs::new(operands[0].clone()))),
+                "Square" => Some(Box::new(Power::new(
+                    operands[0].clone(),
+                    Box::new(Constant::new(2.0)),
+                ))),
                 "Sqrt" => Some(Box::new(Power::new(
                     operands[0].clone(),
                     Box::new(Constant::new(0.5)),

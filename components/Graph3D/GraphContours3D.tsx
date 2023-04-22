@@ -4,7 +4,7 @@ import { extend, Object3DNode, useThree } from "@react-three/fiber";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry";
 import { Line2 } from "three/examples/jsm/lines/Line2";
-import { Line, Plane, Vector2, Vector3 } from "three";
+import { Color, Line, Plane, Vector2, Vector3 } from "three";
 import { Graph3DContext } from "./Graph3D";
 import { useClippingPlanes } from "../../hooks/useClippingPlanes";
 import { GraphSurfaceGridMaterial } from "./GraphSurfaceGridMaterial";
@@ -99,6 +99,7 @@ export function GraphContours3D({ flatContours, color }: GraphContours3DProps) {
             <lineMaterial
               attach="material"
               color={getColor(color)}
+              toneMapped={false}
               linewidth={lerp(
                 (dimension.from ?? dimension.value) === "3D" ? 0 : 3,
                 (dimension.to ?? dimension.value) === "3D" ? 0 : 3,
