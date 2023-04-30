@@ -1,10 +1,11 @@
 import { ReactElement, ReactNode } from "react";
 import * as Equation from "./Equation";
 import * as Expression from "./Expression";
+import * as ComplexExpression from "./ComplexExpression";
 import * as Table from "./Table";
 import * as VectorField from "./VectorField";
 
-export { Equation, Expression, Table, VectorField };
+export { Equation, Expression, ComplexExpression, Table, VectorField };
 
 type MathObjectType<Settings> = {
   id: string;

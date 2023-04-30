@@ -137,7 +137,22 @@ export function MathLiveInput({
   }, [latex]);
 
   return (
-    <div ref={setDiv} className={wrapperDivClassName} style={wrapperDivStyle} />
+    <>
+      <div
+        ref={setDiv}
+        className={wrapperDivClassName}
+        style={wrapperDivStyle}
+      />
+      <style jsx global>
+        {`
+          @media not (pointer: coarse) {
+            math-field::part(virtual-keyboard-toggle) {
+              display: none;
+            }
+          }
+        `}
+      </style>
+    </>
   );
 }
 

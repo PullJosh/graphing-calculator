@@ -10,11 +10,14 @@ interface NavigationProps {
 
   /** Whether the navigation bar should show the "Start graphing" button. */
   showStartGraphing?: boolean;
+
+  children?: React.ReactNode;
 }
 
 export function Navigation({
   width = "container",
   showStartGraphing = true,
+  children,
 }: NavigationProps) {
   return (
     <nav className="bg-gray-900">
@@ -29,6 +32,7 @@ export function Navigation({
             Josh's Graphing Calculator
           </Link>
           <div className="space-x-2 ml-auto flex">
+            {children}
             <ThemeToggle />
             {showStartGraphing && (
               <Link
