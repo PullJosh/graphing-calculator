@@ -1,4 +1,4 @@
-import { Fragment, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import classNames from "classnames";
 import { Graph3D } from "../components/Graph3D/Graph3D";
 import { GraphEquation3D } from "../components/Graph3D/GraphEquation3D";
@@ -14,15 +14,23 @@ import { Navigation } from "../components/Navigation";
 import {
   Equation,
   Expression,
+  ComplexExpression,
   Table,
   VectorField,
 } from "../components/MathObjects";
 
-const mathObjects = [Equation, Expression, Table, VectorField] as const;
+const mathObjects = [
+  Equation,
+  Expression,
+  ComplexExpression,
+  Table,
+  VectorField,
+] as const;
 
 type Item =
   | Equation.ObjectDescription
   | Expression.ObjectDescription
+  | ComplexExpression.ObjectDescription
   | Table.ObjectDescription
   | VectorField.ObjectDescription;
 
@@ -62,7 +70,7 @@ export default function Index() {
     setItems((items) => {
       const newItem: ItemWithId = {
         ...item,
-        id: Math.max(...items.map((item) => item.id)) + 1,
+        id: Math.max(...items.map((item) => item.id), 0) + 1,
         visible: true,
       };
 
@@ -79,10 +87,60 @@ export default function Index() {
     { id: number; axisVar: string; value: number }[]
   >([]);
 
+  const encodeState = useCallback(
+    (state: {
+      items: typeof items;
+      variables: typeof variables;
+      slices: typeof slices;
+    }) => {
+      return encodeURIComponent(btoa(JSON.stringify(state))).replace(
+        /%20/g,
+        "+"
+      );
+    },
+    []
+  );
+
+  const decodeState = useCallback(
+    (encodedState: string) => {
+      const { items, variables, slices } = JSON.parse(
+        atob(decodeURIComponent(encodedState))
+      );
+      setItems(items);
+      setVariables(variables);
+      setSlices(slices);
+    },
+    [setItems, setVariables, setSlices]
+  );
+
+  useEffect(() => {
+    const link = new URL(window.location.href);
+    const encodedState = link.hash.slice(1);
+    if (encodedState) {
+      try {
+        decodeState(encodedState);
+      } finally {
+      }
+    }
+  }, []);
+
   return (
-    <div className="grid grid-cols-[300px,1fr] grid-rows-[auto,1fr] w-screen h-screen">
+    <div className="grid grid-cols-[450px,1fr] grid-rows-[auto,1fr] w-screen h-screen">
       <div className="col-span-full">
-        <Navigation width="full" showStartGraphing={false} />
+        <Navigation width="full" showStartGraphing={false}>
+          <button
+            className="self-center bg-rose-600 text-white px-3 py-1 rounded"
+            onClick={() => {
+              const link = new URL(window.location.href);
+              link.hash = encodeState({ items, variables, slices });
+              console.log(link.href);
+              navigator.clipboard.writeText(link.href);
+              alert("Copied to clipboard!");
+            }}
+          >
+            Copy link to project
+          </button>
+        </Navigation>
       </div>
       <div className="flex flex-col border-r shadow-lg dark:bg-gray-800 dark:border-0 dark:shadow-none">
         <div className="bg-gray-100 border-b p-2 flex justify-end">

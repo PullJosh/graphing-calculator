@@ -20,6 +20,10 @@
     "@react-three/drei": "^9.50.4",
     "@react-three/fiber": "^8.10.0",
     "@react-three/postprocessing": "^2.7.0",
+    "@use-gpu/react": "^0.8.0",
+    "@use-gpu/webgpu": "^0.8.0",
+    "@use-gpu/wgsl-loader": "^0.8.0",
+    "@use-gpu/workbench": "^0.8.0",
     "comlink": "^4.3.1",
     "deep-equal": "^2.2.0",
     "katex": "^0.16.4",
@@ -27,6 +31,7 @@
     "next": "^13.1.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "schema-utils": "^4.0.1",
     "three": "^0.148.0",
     "tunnel-rat": "^0.1.0",
     "usehooks-ts": "^2.9.1"
@@ -44,6 +49,7 @@
     "classnames": "^2.3.2",
     "eslint": "^8.31.0",
     "eslint-config-next": "^13.1.1",
+    "next-transpile-modules": "^10.0.0",
     "postcss": "^8.4.20",
     "tailwindcss": "^3.2.4",
     "typescript": "^4.9.4"
