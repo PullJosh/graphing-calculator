@@ -59,6 +59,7 @@ export function MathLiveInput({
     const latex = mathfieldRef.current!.getValue("latex");
     const mathJSON = ce.parse(latex);
     onBlurProp?.(mathJSON, latex);
+    console.log(latex, mathJSON.json);
   }, [onBlurProp]);
 
   const onKeyDown = useCallback((e: KeyboardEvent) => {

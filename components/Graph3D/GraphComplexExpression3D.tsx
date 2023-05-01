@@ -365,17 +365,27 @@ const nodeToGL = (node: BoxedExpression["json"]): string => {
   }
 
   const functionToGL = (name: string, args: string[]) => {
+    const nested = (fn: string, args: string[]): string => {
+      if (args.length === 1) {
+        return args[0];
+      }
+
+      return `${fn}(${args[0]}, ${nested(fn, args.slice(1))})`;
+    };
+
     switch (name) {
+      case "Complex":
+        return `vec2((${args[0]}).x, (${args[1]}).x)`;
       case "Add":
-        return `complex_add(${args.join(", ")})`;
+        return nested("complex_add", args);
       case "Subtract":
-        return `complex_sub(${args.join(", ")})`;
+        return nested("complex_sub", args);
       case "Negate":
         return `(-${args[0]})`;
       case "Multiply":
-        return `complex_mult(${args.join(", ")})`;
+        return nested("complex_mult", args);
       case "Divide":
-        return `complex_div(${args.join(", ")})`;
+        return nested("complex_div", args);
       case "Power":
         return `complex_pow(${args[0]}, ${args[1]})`;
       // case "Root":

@@ -1,5 +1,6 @@
-import { Fragment, useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import classNames from "classnames";
+import { Popover } from "@headlessui/react";
 import { Graph3D } from "../components/Graph3D/Graph3D";
 import { GraphEquation3D } from "../components/Graph3D/GraphEquation3D";
 import { GraphGrid3D } from "../components/Graph3D/GraphGrid3D";
@@ -93,18 +94,16 @@ export default function Index() {
       variables: typeof variables;
       slices: typeof slices;
     }) => {
-      return encodeURIComponent(btoa(JSON.stringify(state))).replace(
-        /%20/g,
-        "+"
-      );
+      return encodeURIComponent(JSON.stringify(state));
     },
     []
   );
 
   const decodeState = useCallback(
     (encodedState: string) => {
+      console.log(encodeState, JSON.parse(decodeURIComponent(encodedState)));
       const { items, variables, slices } = JSON.parse(
-        atob(decodeURIComponent(encodedState))
+        decodeURIComponent(encodedState)
       );
       setItems(items);
       setVariables(variables);
@@ -124,22 +123,51 @@ export default function Index() {
     }
   }, []);
 
+  const encodedStateURL = useMemo(() => {
+    const link = new URL(
+      global?.location?.href ??
+        "https://joshs-graphing-calculator.vercel.app/app"
+    );
+    link.hash = encodeState({ items, variables, slices });
+    return link.href;
+  }, [encodeState, items, slices, variables]);
+
   return (
-    <div className="grid grid-cols-[450px,1fr] grid-rows-[auto,1fr] w-screen h-screen">
+    <div className="grid grid-cols-[350px,1fr] grid-rows-[auto,1fr] w-screen h-screen">
       <div className="col-span-full">
         <Navigation width="full" showStartGraphing={false}>
-          <button
-            className="self-center bg-rose-600 text-white px-3 py-1 rounded"
-            onClick={() => {
-              const link = new URL(window.location.href);
-              link.hash = encodeState({ items, variables, slices });
-              console.log(link.href);
-              navigator.clipboard.writeText(link.href);
-              alert("Copied to clipboard!");
-            }}
-          >
-            Copy link to project
-          </button>
+          <Popover className="relative self-center">
+            <Popover.Button className="bg-blue-600 text-white px-3 py-1 rounded">
+              Save link to project
+            </Popover.Button>
+
+            <Popover.Panel>
+              <div className="border-8 border-transparent border-b-white absolute top-full left-1/2 -translate-x-1/2 -translate-y-1/2" />
+              <div className="absolute flex top-full right-0 mt-2 z-10 bg-white p-2 rounded shadow-lg">
+                <input
+                  className="w-64 border rounded-l bg-gray-100 px-1 py-px text-sm"
+                  type="text"
+                  value={encodedStateURL}
+                  onChange={() => {}}
+                />
+                <button
+                  className="rounded-r bg-gray-800 text-white px-2 py-1 text-sm"
+                  onClick={() => {
+                    navigator.clipboard
+                      .writeText(encodedStateURL)
+                      .then(() => {
+                        alert("Copied!");
+                      })
+                      .catch((err) => {
+                        alert("Failed to copy");
+                      });
+                  }}
+                >
+                  Copy
+                </button>
+              </div>
+            </Popover.Panel>
+          </Popover>
         </Navigation>
       </div>
       <div className="flex flex-col border-r shadow-lg dark:bg-gray-800 dark:border-0 dark:shadow-none">
