@@ -2,18 +2,17 @@ import classNames from "classnames";
 import dynamic from "next/dynamic";
 import type { ObjectDescription } from "./spec";
 import { CSSProperties } from "react";
+import { ContentEditorProps } from "..";
 
 const MathLiveInput = dynamic(
   () => import("../../MathLiveInput").then((mod) => mod.MathLiveInput),
   { ssr: false }
 );
 
-interface ContentEditorProps {
-  obj: ObjectDescription;
-  setObj: (obj: ObjectDescription) => void;
-}
-
-export function ContentEditor({ obj, setObj }: ContentEditorProps) {
+export function ContentEditor({
+  obj,
+  setObj,
+}: ContentEditorProps<ObjectDescription>) {
   const { color, latex } = obj;
 
   const setColor = (newColor: "red" | "blue") => {

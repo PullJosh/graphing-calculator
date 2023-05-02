@@ -1,12 +1,11 @@
 import { useRef } from "react";
 import type { ObjectDescription } from "./spec";
+import { ContentEditorProps } from "..";
 
-interface ContentEditorProps {
-  obj: ObjectDescription;
-  setObj: (obj: ObjectDescription) => void;
-}
-
-export function ContentEditor({ obj, setObj }: ContentEditorProps) {
+export function ContentEditor({
+  obj,
+  setObj,
+}: ContentEditorProps<ObjectDescription>) {
   const { values } = obj;
 
   const setValues = (newValues: ObjectDescription["values"]) => {

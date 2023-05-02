@@ -1,18 +1,17 @@
 import dynamic from "next/dynamic";
 import { Children, Fragment, ReactNode } from "react";
 import type { ObjectDescription } from "./spec";
+import { ContentEditorProps } from "..";
 
 const MathLiveInput = dynamic(
   () => import("../../MathLiveInput").then((mod) => mod.MathLiveInput),
   { ssr: false }
 );
 
-interface ContentEditorProps {
-  obj: ObjectDescription;
-  setObj: (obj: ObjectDescription) => void;
-}
-
-export function ContentEditor({ obj, setObj }: ContentEditorProps) {
+export function ContentEditor({
+  obj,
+  setObj,
+}: ContentEditorProps<ObjectDescription>) {
   const { components } = obj;
 
   const setComponents = (newComponents: string[]) => {

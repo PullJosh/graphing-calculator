@@ -13,25 +13,28 @@ import { Menu } from "@headlessui/react";
 import { Navigation } from "../components/Navigation";
 
 import {
+  Action,
+  ComplexExpression,
   Equation,
   Expression,
-  ComplexExpression,
   Table,
   VectorField,
 } from "../components/MathObjects";
 
 const mathObjects = [
+  Action,
+  ComplexExpression,
   Equation,
   Expression,
-  ComplexExpression,
   Table,
   VectorField,
 ] as const;
 
 type Item =
+  | Action.ObjectDescription
+  | ComplexExpression.ObjectDescription
   | Equation.ObjectDescription
   | Expression.ObjectDescription
-  | ComplexExpression.ObjectDescription
   | Table.ObjectDescription
   | VectorField.ObjectDescription;
 
@@ -316,12 +319,14 @@ export default function Index() {
                   <span className="sr-only">Change color</span>
                 </button>
               </div>
-              <div className="flex-grow grid grid-rows-1 grid-cols-1 justify-items-stretch">
+              <div className="w-full relative overflow-hidden grid grid-rows-1 grid-cols-1 justify-items-stretch">
                 <ContentEditor
                   obj={item}
                   setObj={(newObj: Item) =>
                     setItem(item.id, { ...item, ...newObj })
                   }
+                  variables={variables}
+                  setVariables={setVariables}
                 />
               </div>
               <button
