@@ -32,7 +32,7 @@ export function ContentEditor({
       variables.map(([name, value]) => {
         if (name === variable) {
           try {
-            ce.pushScope(Object.fromEntries(variables));
+            ce.pushScope(Object.fromEntries(variables) as any);
             let newValue = Number(ce.parse(latex).N().valueOf() ?? 0);
             if (isNaN(newValue)) newValue = 0;
             console.log(newValue);
