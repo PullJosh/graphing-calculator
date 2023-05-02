@@ -1,3 +1,5 @@
+import type { Dispatch, SetStateAction } from "react";
+
 export * as Action from "./Action";
 export * as ComplexExpression from "./ComplexExpression";
 export * as Equation from "./Equation";
@@ -10,5 +12,5 @@ export interface ContentEditorProps<ObjectDescription> {
   setObj: (obj: ObjectDescription) => void;
 
   variables: [string, number][];
-  setVariables: (variables: [string, number][]) => void;
+  setVariables: Dispatch<SetStateAction<[string, number][]>>;
 }

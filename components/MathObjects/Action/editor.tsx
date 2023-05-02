@@ -28,7 +28,7 @@ export function ContentEditor({
   };
 
   const action = useCallback(() => {
-    setVariables(
+    setVariables((variables) =>
       variables.map(([name, value]) => {
         if (name === variable) {
           try {
@@ -47,7 +47,7 @@ export function ContentEditor({
         }
       })
     );
-  }, [variable, latex, variables, setVariables]);
+  }, [variable, latex, setVariables]);
 
   const [running, setRunning] = useState(false);
 

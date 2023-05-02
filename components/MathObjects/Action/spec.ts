@@ -25,6 +25,6 @@ export type ObjectDescription = {
 
 export const defaultProps: ObjectDescription = {
   type: spec.name,
-  variable: "a",
-  latex: "a + 1",
+  variable: "",
+  latex: "0",
 } as const;
