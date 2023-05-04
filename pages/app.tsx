@@ -104,7 +104,6 @@ export default function Index() {
 
   const decodeState = useCallback(
     (encodedState: string) => {
-      console.log(encodeState, JSON.parse(decodeURIComponent(encodedState)));
       const { items, variables, slices } = JSON.parse(
         decodeURIComponent(encodedState)
       );

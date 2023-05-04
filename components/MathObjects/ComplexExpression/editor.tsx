@@ -2,8 +2,13 @@ import dynamic from "next/dynamic";
 import type { ObjectDescription } from "./spec";
 import { ContentEditorProps } from "..";
 
-const MathLiveInput = dynamic(
-  () => import("../../MathLiveInput").then((mod) => mod.MathLiveInput),
+// const MathLiveInput = dynamic(
+//   () => import("../../MathLiveInput").then((mod) => mod.MathLiveInput),
+//   { ssr: false }
+// );
+
+const MathQuillInput = dynamic(
+  () => import("../../MathQuillInput").then((mod) => mod.MathQuillInput),
   { ssr: false }
 );
 
@@ -18,13 +23,13 @@ export function ContentEditor({
   };
 
   return (
-    <MathLiveInput
+    <MathQuillInput
       latex={latex}
       onChange={(newLatex) => {
         setLatex(newLatex);
       }}
-      wrapperDivClassName="block text-2xl w-full flex-grow self-center focus-within:outline dark:bg-gray-700 dark:text-gray-100"
-      className="w-full px-3 py-4 outline-none"
+      className="px-4 py-2 text-2xl !flex items-center focus-within:outline dark:bg-gray-700 dark:text-gray-100"
+      fontSize="1.5rem"
     />
   );
 }

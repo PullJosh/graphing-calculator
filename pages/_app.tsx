@@ -1,6 +1,7 @@
 import type { AppProps } from "next/app";
 import { Noto_Sans, Noto_Serif } from "@next/font/google";
 import "../styles/globals.css";
+import "../mathquill-0.10.1/mathquill.css";
 
 import Script from "next/script";
 import { createContext, Dispatch, SetStateAction, useState } from "react";

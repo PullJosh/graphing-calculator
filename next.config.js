@@ -32,8 +32,6 @@ const nextConfig = {
       ],
     });
 
-    console.log("Config: ", options.isServer, config.module.rules);
-
     return config;
   },
 };

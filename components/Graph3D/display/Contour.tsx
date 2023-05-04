@@ -92,7 +92,6 @@ function ThickContour({
   const { size } = useThree();
 
   const geometry = useMemo(() => {
-    console.log("making line geometry");
     const g = new LineGeometry();
     g.setPositions(points);
     return g;

@@ -86,6 +86,11 @@ export default function Index() {
                   Expression Image Generator
                 </Link>
               </li>
+              <li>
+                <Link href="/tools/complex-domain-coloring-image-generator">
+                  Domain Coloring Image Generator (Complex Expressions)
+                </Link>
+              </li>
             </ul>
           </div>
         </div>

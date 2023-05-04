@@ -3,8 +3,8 @@ import { Children, Fragment, ReactNode } from "react";
 import type { ObjectDescription } from "./spec";
 import { ContentEditorProps } from "..";
 
-const MathLiveInput = dynamic(
-  () => import("../../MathLiveInput").then((mod) => mod.MathLiveInput),
+const MathQuillInput = dynamic(
+  () => import("../../MathQuillInput").then((mod) => mod.MathQuillInput),
   { ssr: false }
 );
 
@@ -31,14 +31,14 @@ export function ContentEditor({
       <span>〈</span>
       <Join separator={<span>, </span>}>
         {components.map((component, i) => (
-          <MathLiveInput
+          <MathQuillInput
             key={i}
             latex={component}
             onChange={(newLatex) => {
               setComponent(i, newLatex);
             }}
-            wrapperDivClassName="block text-2xl self-center focus-within:outline dark:bg-gray-700 dark:text-gray-100"
-            className="px-0 py-4 outline-none"
+            className="px-1 py-2 text-2xl !flex items-center focus-within:outline dark:bg-gray-700 dark:text-gray-100"
+            fontSize="1.5rem"
           />
         ))}
       </Join>
