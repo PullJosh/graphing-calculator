@@ -1,14 +1,16 @@
-import { ComputeEngine } from "@cortex-js/compute-engine";
+"use client";
+
 import dynamic from "next/dynamic";
-import { useEffect, useMemo, useState } from "react";
-import { Vector3 } from "three";
-import { Graph3D } from "../../components/Graph3D/Graph3D";
-import { GraphAxis3D } from "../../components/Graph3D/GraphAxis3D";
-import { GraphPoint3D } from "../../components/Graph3D/GraphPoint3D";
+import { useMemo, useState } from "react";
+import { Graph3D } from "../../../components/Graph3D/Graph3D";
+import { GraphAxis3D } from "../../../components/Graph3D/GraphAxis3D";
+import { ComputeEngine } from "@cortex-js/compute-engine";
 
 const MathLiveInput = dynamic(
   () =>
-    import("../../components/MathLiveInput").then((mod) => mod.MathLiveInput),
+    import("../../../components/MathLiveInput").then(
+      (mod) => mod.MathLiveInput
+    ),
   { ssr: false }
 );
 
@@ -44,7 +46,7 @@ export default function ComplexSequence() {
           onChange={(newLatex) => setLatex(newLatex)}
         />
         <div className="w-[600px] h-[600px] relative">
-          <Graph3D defaultDimension="2D" showControls={false}>
+          <Graph3D view="2D">
             {() => (
               <>
                 <GraphAxis3D axis="x" />

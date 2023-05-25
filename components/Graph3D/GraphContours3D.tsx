@@ -1,3 +1,5 @@
+"use client";
+
 import { Fragment, useContext, useMemo } from "react";
 import { extend, Object3DNode, useThree } from "@react-three/fiber";
 

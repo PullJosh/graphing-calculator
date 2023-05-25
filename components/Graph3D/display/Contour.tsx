@@ -1,3 +1,5 @@
+"use client";
+
 import { extend, Object3DNode, useThree } from "@react-three/fiber";
 import { useMemo } from "react";
 import { Line, Vector2 } from "three";

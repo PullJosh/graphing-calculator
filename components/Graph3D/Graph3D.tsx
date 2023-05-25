@@ -1,3 +1,5 @@
+"use client";
+
 import {
   createContext,
   Dispatch,
@@ -5,16 +7,13 @@ import {
   ReactNode,
   SetStateAction,
   useCallback,
-  useContext,
   useEffect,
-  useMemo,
   useRef,
   useState,
 } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import {
   Camera,
-  CubeTextureLoader,
   Object3D,
   OrthographicCamera,
   PerspectiveCamera,
@@ -22,31 +21,23 @@ import {
   Vector3,
 } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
-import tunnel from "tunnel-rat";
-import classNames from "classnames";
 import { lerp, lerpQuaternion, lerpVec3, lerpWindow } from "../../utils/lerp";
 import { useEffectOnce } from "usehooks-ts";
-import { ThemeContext } from "../../pages/_app";
 
-type Graph3DProps = Omit<Graph3DInnerProps, "UITunnel">;
-
-export const Graph3D = forwardRef<HTMLCanvasElement, Graph3DProps>(
+export const Graph3D = forwardRef<HTMLCanvasElement, Graph3DInnerProps>(
   function Graph3D(props, ref) {
-    const [uiTunnel] = useState(() => tunnel());
-
     return (
-      <>
-        <div className="absolute top-4 left-4 z-20">
-          <uiTunnel.Out />
-        </div>
-        <Canvas
-          gl={{ localClippingEnabled: true }}
-          ref={ref}
-          className="bg-white dark:bg-black"
-        >
-          <Graph3DInner {...props} UITunnel={uiTunnel.In} />
-        </Canvas>
-      </>
+      <Canvas
+        gl={{ localClippingEnabled: true }}
+        ref={ref}
+        className="bg-white dark:bg-black"
+        resize={{
+          debounce: 0, // Respond instantly to changes in the parent's size
+          offsetSize: true, // Size the canvas properly when placed inside a scaled slidehsow `Slide`
+        }}
+      >
+        <Graph3DInner {...props} />
+      </Canvas>
     );
   }
 );
@@ -69,9 +60,7 @@ type Graph3DContextType = ViewInfo & {
 
 export const Graph3DContext = createContext<Graph3DContextType>({
   dimension: { value: "3D" },
-  setDimension: () => {},
   cameraType: { value: "perspective" },
-  setCameraType: () => {},
   window: {
     value: [
       [-5, -5, -5],
@@ -92,28 +81,45 @@ export const Graph3DContext = createContext<Graph3DContextType>({
   varValues: {},
 });
 
+type CameraView = "1D" | "2D" | "3D-orthographic" | "3D-perspective";
+
 interface Graph3DInnerProps {
+  /** The children of the graph. Everything to be graphed is passed here. */
   children: (data: ViewInfo) => ReactNode;
-  UITunnel: (props: { children: ReactNode }) => null;
-  showControls?: boolean;
-  defaultDimension?: Dimension;
-  defaultCameraType?: CameraType;
+
+  /** The width of the graph canvas in pixels */
+  width?: number;
+
+  /** The height of the graph canvas in pixels */
+  height?: number;
+
+  /** The dimension and camera type of the graph */
+  view?: CameraView;
+
+  /** The center point of the graphing window */
   defaultWindowCenter?: [number, number];
+
+  /** The area of the graphing window (if in 2D) */
   defaultWindowArea?: number;
+
+  /** Whether the user can pan the graph */
   allowPan?: boolean;
+
+  /** Whether the user can zoom the graph */
   allowZoom?: boolean;
+
+  /** Whether the graph should rotate automatically (in 3D) */
   autoRotate?: boolean;
+
+  /** The (non-axis) variable values to use when computing graphs */
   varValues?: Record<string, number>;
 }
 
 function Graph3DInner({
   children,
-  UITunnel,
-  showControls = true,
-  defaultDimension = "3D",
-  defaultCameraType = defaultDimension === "3D"
-    ? "perspective"
-    : "orthographic",
+  width = 400,
+  height = 400,
+  view = "2D",
   defaultWindowCenter = [0, 0],
   defaultWindowArea = 100,
   allowPan = true,
@@ -122,8 +128,7 @@ function Graph3DInner({
   varValues = {},
 }: Graph3DInnerProps) {
   const viewInfo = useDimensionCamerasAndControls(
-    defaultDimension,
-    defaultCameraType,
+    view,
     defaultWindowCenter,
     defaultWindowArea,
     allowPan,
@@ -131,15 +136,11 @@ function Graph3DInner({
     autoRotate
   );
 
-  const { dimension, setDimension, cameraType, setCameraType } = viewInfo;
-
   const [axisComponentCounts, setAxisComponentCounts] = useState({
     x: 0,
     y: 0,
     z: 0,
   });
-
-  const { theme } = useContext(ThemeContext);
 
   return (
     <Graph3DContext.Provider
@@ -154,123 +155,6 @@ function Graph3DInner({
       {/* <pointLight position={[10, 10, 10]} /> */}
       {/* <pointLight position={[-10, 7, -5]} intensity={0.5} /> */}
       {children(viewInfo)}
-      <UITunnel>
-        {showControls && (
-          <div className="flex space-x-2">
-            <div className="bg-gray-200 p-1 rounded-md flex">
-              <button
-                className={classNames("flex text-sm px-2 py-1", {
-                  "bg-white shadow-sm rounded": dimension.value === "1D",
-                })}
-                onClick={() => setDimension("1D")}
-                disabled={dimension.value === "1D"}
-              >
-                1D
-              </button>
-              <button
-                className={classNames("flex text-sm px-2 py-1", {
-                  "bg-white shadow-sm rounded": dimension.value === "2D",
-                })}
-                onClick={() => setDimension("2D")}
-                disabled={dimension.value === "2D"}
-              >
-                2D
-              </button>
-              <button
-                className={classNames("flex text-sm px-2 py-1", {
-                  "bg-white shadow-sm rounded": dimension.value === "3D",
-                })}
-                onClick={() => setDimension("3D")}
-                disabled={dimension.value === "3D"}
-              >
-                3D
-              </button>
-            </div>
-            {dimension.value === "3D" && (
-              <div className="bg-gray-200 p-1 rounded-md flex">
-                <button
-                  className={classNames("flex text-sm px-2 py-1", {
-                    "bg-white shadow-sm rounded":
-                      cameraType.value === "perspective",
-                  })}
-                  onClick={() => setCameraType("perspective")}
-                  disabled={cameraType.value === "perspective"}
-                  title="Perspective camera"
-                >
-                  <svg
-                    viewBox="0 0 20 20"
-                    width={20}
-                    height={20}
-                    fill="none"
-                    className="block stroke-gray-600"
-                    strokeWidth={2}
-                    style={{
-                      strokeLinecap: "round",
-                      strokeLinejoin: "round",
-                    }}
-                  >
-                    <g transform="matrix(1,0,0,1,0,-0.75)">
-                      <path d="M2.206,5.5L10,2.5L17.794,5.5L10,10L2.206,5.5Z" />
-                    </g>
-                    <g transform="matrix(-0.5,0.866025,-0.866025,-0.5,23.6603,5.58975)">
-                      <path d="M2.206,5.5L10,2.5L17.794,5.5L10,10L2.206,5.5Z" />
-                    </g>
-                    <g transform="matrix(-0.5,-0.866025,0.866025,-0.5,6.33975,22.9103)">
-                      <path d="M2.206,5.5L10,2.5L17.794,5.5L10,10L2.206,5.5Z" />
-                    </g>
-                  </svg>
-                </button>
-                <button
-                  className={classNames("flex text-sm px-2 py-1", {
-                    "bg-white shadow-sm rounded":
-                      cameraType.value === "orthographic",
-                  })}
-                  onClick={() => setCameraType("orthographic")}
-                  disabled={cameraType.value === "orthographic"}
-                  title="Orthographic camera"
-                >
-                  <svg
-                    viewBox="0 0 20 20"
-                    width={20}
-                    height={20}
-                    fill="none"
-                    className="block stroke-gray-600"
-                    strokeWidth={2}
-                    style={{
-                      strokeLinecap: "round",
-                      strokeLinejoin: "round",
-                    }}
-                  >
-                    <path d="M2.206,5.5L10,1L17.794,5.5L10,10L2.206,5.5Z" />
-                    <path d="M2.206,14.5L2.206,5.5L10,10L10,19L2.206,14.5Z" />
-                    <path d="M10,10L10,19L17.794,14.5L17.794,5.5L10,10Z" />
-                  </svg>
-                </button>
-              </div>
-            )}
-            {dimension.value === "3D" && (
-              <div className="bg-gray-200 p-1 rounded-md flex opacity-50">
-                <button
-                  className={classNames("flex text-sm px-2 py-1", {
-                    "bg-white shadow-sm rounded": false,
-                  })}
-                  disabled={true}
-                >
-                  1st Person
-                </button>
-                <button
-                  className={classNames("flex text-sm px-2 py-1", {
-                    "bg-white shadow-sm rounded": true,
-                  })}
-                  disabled={true}
-                >
-                  3rd Person
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-      </UITunnel>
     </Graph3DContext.Provider>
   );
 }
@@ -290,9 +174,6 @@ type ViewOptions = {
 };
 
 type ViewInfo = ViewOptions & {
-  setDimension: (newDimension: Dimension) => void;
-  setCameraType: (newCameraType: CameraType) => void;
-
   toSceneX: (x: number) => number;
   toSceneY: (y: number) => number;
   toSceneZ: (z: number) => number;
@@ -380,23 +261,24 @@ function getWindowWithAreaAndAspectRatio(
 }
 
 function useDimensionCamerasAndControls(
-  defaultDimension: Dimension = "3D",
-  defaultCameraType: CameraType = "perspective",
+  view: CameraView,
   defaultWindowCenter: [number, number] = [0, 0],
   defaultWindowArea: number = 100,
   allowPan: boolean = true,
   allowZoom: boolean = true,
   autoRotate: boolean = false
 ): ViewInfo {
-  if (defaultDimension !== "3D" && defaultCameraType !== "orthographic") {
-    console.error(
-      "Passed invalid combination: defaultDimension = ",
-      defaultDimension,
-      ", defaultCameraType = ",
-      defaultCameraType
-    );
-    defaultCameraType = "orthographic"; // Don't allow illegal combinations
-  }
+  const defaultCameraType =
+    view === "3D-perspective" ? "perspective" : "orthographic";
+
+  const defaultDimension = (
+    {
+      "1D": "1D",
+      "2D": "2D",
+      "3D-perspective": "3D",
+      "3D-orthographic": "3D",
+    } as const
+  )[view];
 
   const pCam = usePerspectiveCamera(defaultCameraType === "perspective");
   const oCam = useOrthographicCamera(defaultCameraType === "orthographic");
@@ -416,9 +298,6 @@ function useDimensionCamerasAndControls(
   const [cameraType, setCameraTypeRaw] = useState<AnimatableValue<CameraType>>({
     value: defaultCameraType,
   });
-
-  const [default3DCameraType, setDefault3DCameraType] =
-    useState<CameraType>("perspective");
 
   const [defaultWindow, defaultWWC] = getIdealWindow(
     defaultDimension,
@@ -532,14 +411,7 @@ function useDimensionCamerasAndControls(
       };
 
       const from: CameraKeyframe = { ...currentKeyframe, ...fromPartial };
-      let to: CameraKeyframe = { ...currentKeyframe, ...toPartial };
-
-      if (to.dimension === "3D" && from.dimension !== "3D") {
-        if (!("cameraType" in toPartial)) {
-          // If switching to 3D and camera type not specified, use default
-          to.cameraType = default3DCameraType;
-        }
-      }
+      const to: CameraKeyframe = { ...currentKeyframe, ...toPartial };
 
       const fromFov =
         from.cameraType === "perspective" ? perspectiveFov : orthographicFov;
@@ -642,15 +514,33 @@ function useDimensionCamerasAndControls(
       window.value,
       windowWorldCoordinates.value,
       animate,
-      default3DCameraType,
       updateCameras,
       orbitControls,
       allowPan,
     ]
   );
 
-  const setDimension = useCallback(
-    (newDimension: Dimension) => {
+  const updateView = useCallback(
+    (newView: CameraView) => {
+      const newDimension: Dimension = (
+        {
+          "1D": "1D",
+          "2D": "2D",
+          "3D-orthographic": "3D",
+          "3D-perspective": "3D",
+        } as const
+      )[newView];
+
+      const currentDimension = dimension.to ?? dimension.value;
+      if (currentDimension === "3D" && newDimension === "3D") {
+        // Only changing camera type
+        animateCameraMove({
+          cameraType:
+            newView === "3D-perspective" ? "perspective" : "orthographic",
+        });
+        return;
+      }
+
       const oldWidth = window.value[1][0] - window.value[0][0];
       const oldHeight = window.value[1][1] - window.value[0][1];
 
@@ -718,6 +608,8 @@ function useDimensionCamerasAndControls(
         case "3D": {
           animateCameraMove({
             dimension: "3D",
+            cameraType:
+              newView === "3D-orthographic" ? "orthographic" : "perspective",
             cameraTarget: new Vector3(0, 0, 0),
             cameraDirection: new Vector3(1, 1, 1).normalize(),
             cameraDistance: ORBIT_DISTANCE,
@@ -729,28 +621,35 @@ function useDimensionCamerasAndControls(
       }
     },
     [
+      dimension.to,
+      dimension.value,
       window.value,
       windowWorldCoordinates.value,
-      dimension.value,
       viewport.aspect,
       animateCameraMove,
     ]
   );
 
-  const setCameraType = useCallback(
-    (newCameraType: CameraType) => {
-      if (dimension.value !== "3D") {
-        console.error(
-          `Cannot set camera type to ${newCameraType} when in ${dimension.value} (works in 3D only)`
-        );
-        return;
-      }
-
-      setDefault3DCameraType(newCameraType);
-      animateCameraMove({ cameraType: newCameraType });
-    },
-    [animateCameraMove, dimension.value]
-  );
+  useEffect(() => {
+    // Set dimension based on view
+    const currentDimension = dimension.to ?? dimension.value;
+    const currentCameraType = cameraType.to ?? cameraType.value;
+    if (
+      defaultDimension !== currentDimension ||
+      defaultCameraType !== currentCameraType
+    ) {
+      updateView(view);
+    }
+  }, [
+    cameraType.to,
+    cameraType.value,
+    defaultCameraType,
+    defaultDimension,
+    dimension.to,
+    dimension.value,
+    updateView,
+    view,
+  ]);
 
   const toSceneX = useCallback(
     (x: number) => {
@@ -963,13 +862,60 @@ function useDimensionCamerasAndControls(
     };
   }, [gl.domElement, onWheel]);
 
+  // Adapt window and camera viewport when canvas resizes
+  const canvasSizeRef = useRef({
+    width: gl.domElement.clientWidth,
+    height: gl.domElement.clientHeight,
+  });
+  useFrame(() => {
+    const newSize = {
+      width: gl.domElement.clientWidth,
+      height: gl.domElement.clientHeight,
+    };
+
+    const oldSize = canvasSizeRef.current;
+    if (newSize.width === oldSize.width && newSize.height === oldSize.height) {
+      // Size hasn't changed; nothing to do
+      return;
+    }
+
+    canvasSizeRef.current = newSize;
+
+    // Canvas has been resized. Update window and camera viewport.
+    const windowValue = window.to ?? window.value;
+    const newArea =
+      (windowValue[1][0] - windowValue[0][0]) *
+      (windowValue[1][1] - windowValue[0][1]);
+    const newCenter = [
+      (windowValue[0][0] + windowValue[1][0]) / 2,
+      (windowValue[0][1] + windowValue[1][1]) / 2,
+    ] as [number, number];
+    const [newWindow, newWWC] = getIdealWindow(
+      dimension.value,
+      newSize.width / newSize.height,
+      dimension.value === "2D" ? newSize.width / newSize.height : 1,
+      newArea,
+      newCenter
+    );
+
+    setWindow({ value: newWindow });
+    setWindowWorldCoordinates({ value: newWWC });
+
+    // Call updateCameras() to refresh them for the new viewport.
+    // Pass in all the existing camera properties so that nothing else changes.
+    updateCameras(
+      cameraType.value === "orthographic" ? orthographicFov : perspectiveFov,
+      new Vector3(0, 0, 0),
+      cameraType.value === "orthographic" ? oCam.quaternion : pCam.quaternion,
+      ORBIT_DISTANCE
+    );
+  });
+
   return {
     dimension,
     cameraType,
     window,
     windowWorldCoordinates,
-    setDimension,
-    setCameraType,
     toSceneX,
     toSceneY,
     toSceneZ,

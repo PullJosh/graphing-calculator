@@ -1,14 +1,16 @@
+"use client";
+
 import classNames from "classnames";
 import { ReactNode } from "react";
 import { Euler, Vector3 } from "three";
-import { Graph3D } from "../../components/Graph3D/Graph3D";
-import { GraphAxis3D } from "../../components/Graph3D/GraphAxis3D";
-import { GraphBoundingBox3D } from "../../components/Graph3D/GraphBoundingBox3D";
-import { GraphCurve3D } from "../../components/Graph3D/GraphCurve3D";
-import { GraphEquation3D } from "../../components/Graph3D/GraphEquation3D";
-import { GraphGrid3D } from "../../components/Graph3D/GraphGrid3D";
-import { GraphSurfaceGridMaterial } from "../../components/Graph3D/GraphSurfaceGridMaterial";
-import { Latex } from "../../components/Latex";
+import { Graph3D } from "../../../components/Graph3D/Graph3D";
+import { GraphAxis3D } from "../../../components/Graph3D/GraphAxis3D";
+import { GraphBoundingBox3D } from "../../../components/Graph3D/GraphBoundingBox3D";
+import { GraphCurve3D } from "../../../components/Graph3D/GraphCurve3D";
+import { GraphEquation3D } from "../../../components/Graph3D/GraphEquation3D";
+import { GraphGrid3D } from "../../../components/Graph3D/GraphGrid3D";
+import { GraphSurfaceGridMaterial } from "../../../components/Graph3D/GraphSurfaceGridMaterial";
+import { Latex } from "../../../components/Latex";
 
 let coneParabolaPoints = new Float32Array(((5 - -5 / 4) / 0.02) * 2 * 3);
 let i = 0;
@@ -35,7 +37,7 @@ export default function Parabolas() {
             A parabola is a curvy bowl shape:
             <div className="grid grid-cols-[1fr,auto] gap-x-8 not-prose">
               <div className="relative border">
-                <Graph3D defaultDimension="2D">
+                <Graph3D view="2D">
                   {() => (
                     <>
                       <GraphGrid3D normalAxis="z" />
@@ -71,12 +73,7 @@ export default function Parabolas() {
             this:
             <div className="not-prose">
               <div className="relative w-3/4 aspect-square border">
-                <Graph3D
-                  defaultDimension="3D"
-                  // defaultCameraType="orthographic"
-                  showControls={false}
-                  autoRotate={true}
-                >
+                <Graph3D view="3D-orthographic" autoRotate={true}>
                   {() => (
                     <>
                       <GraphGrid3D normalAxis="z" />

@@ -1,9 +1,10 @@
-import { useContext, useMemo } from "react";
+"use client";
+
+import { useMemo } from "react";
 import { DoubleSide, Euler, Shape, TwoPassDoubleSide, Vector3 } from "three";
 import { useWorldCoordinateTransformation } from "../../../hooks/useWorldCoordinateTransformation";
 import { Axis, Color } from "../../../types";
 import { getColor } from "../../../utils/tailwindColors";
-import { Graph3DContext } from "../Graph3D";
 import { Contour } from "./Contour";
 
 interface AreaProps {
@@ -27,7 +28,6 @@ export function Area({
   outlineWidth = 3,
   outlineColor = color,
 }: AreaProps) {
-  const { window, windowWorldCoordinates } = useContext(Graph3DContext);
   const { scale, position, rotation } = useWorldCoordinateTransformation();
 
   if (axis1 === axis2) {
@@ -56,24 +56,6 @@ export function Area({
     }
     return outlinePoints;
   }, [shape, outline, axis1, axis2, normalAxis, normalAxisPosition]);
-
-  const sceneScaleFactor = new Vector3(
-    replaceNaN(
-      (windowWorldCoordinates.value[1][0] -
-        windowWorldCoordinates.value[0][0]) /
-        (window.value[1][0] - window.value[0][0])
-    ),
-    replaceNaN(
-      (windowWorldCoordinates.value[1][2] -
-        windowWorldCoordinates.value[0][2]) /
-        (window.value[1][2] - window.value[0][2])
-    ),
-    -replaceNaN(
-      (windowWorldCoordinates.value[1][1] -
-        windowWorldCoordinates.value[0][1]) /
-        (window.value[1][1] - window.value[0][1])
-    )
-  );
 
   const translation = new Vector3(
     normalAxis === "x" ? normalAxisPosition : 0,
@@ -117,8 +99,4 @@ export function Area({
       )}
     </>
   );
-}
-
-function replaceNaN(value: number, replacement = 0) {
-  return isNaN(value) ? replacement : value;
 }

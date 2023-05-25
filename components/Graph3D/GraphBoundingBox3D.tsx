@@ -1,3 +1,5 @@
+"use client";
+
 import { useContext } from "react";
 import { Graph3DContext } from "./Graph3D";
 import { GraphGridLine3D } from "./GraphGridLine3D";

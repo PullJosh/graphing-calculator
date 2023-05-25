@@ -1,3 +1,5 @@
+"use client";
+
 import { useContext, useMemo, useRef } from "react";
 
 import { ComputeEngine } from "@cortex-js/compute-engine";

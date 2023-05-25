@@ -1,3 +1,5 @@
+"use client";
+
 import { useContext, useMemo } from "react";
 import { GraphContours3D } from "./GraphContours3D";
 import { useFlatContoursForEquation } from "../../hooks/useFlatContoursForEquation";

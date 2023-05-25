@@ -1,3 +1,5 @@
+"use client";
+
 import { extend, Object3DNode, useFrame, useThree } from "@react-three/fiber";
 import { useContext, useRef } from "react";
 import { Euler, Vector2, Vector3, Color as ThreeColor, Line } from "three";

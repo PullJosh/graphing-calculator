@@ -1,3 +1,5 @@
+"use client";
+
 import { ShaderMaterialProps } from "@react-three/fiber";
 import { useRef } from "react";
 import { Color, DoubleSide, ShaderMaterial } from "three";

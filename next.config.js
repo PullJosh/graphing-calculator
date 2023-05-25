@@ -21,16 +21,18 @@ const nextConfig = {
     // config.optimization.moduleIds = "named";
 
     // use-gpu config
+    // config.module.rules.push({
+    //   test: /\.wgsl$/i,
+    //   use: ["@use-gpu/wgsl-loader"],
+    // });
     config.module.rules.push({
       test: /\.wgsl$/i,
+      // exclude: /node_modules\/(?!(?:@use-gpu\/workbench)|(?:@use-gpu\/wgsl))/,
+      exclude: /node_modules/,
       use: ["@use-gpu/wgsl-loader"],
-      include: [
-        path.resolve(__dirname, "pages"),
-        path.resolve(__dirname, "components"),
-        path.resolve(__dirname, "hooks"),
-        path.resolve(__dirname, "node_modules/@use-gpu/wgsl"),
-      ],
     });
+
+    config.resolve.extensions.push(".wgsl");
 
     return config;
   },

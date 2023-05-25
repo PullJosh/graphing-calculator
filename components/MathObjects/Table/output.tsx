@@ -1,3 +1,5 @@
+"use client";
+
 import { Vector3 } from "three";
 import { Point } from "../../Graph3D/display/Point";
 import type { ObjectDescription } from "./spec";

@@ -1,3 +1,5 @@
+"use client";
+
 import { Vector3 } from "three";
 import { useWorldCoordinateTransformation } from "../../../hooks/useWorldCoordinateTransformation";
 import { getColor } from "../../../utils/tailwindColors";

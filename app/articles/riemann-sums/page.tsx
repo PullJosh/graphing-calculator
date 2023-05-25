@@ -1,11 +1,12 @@
-import { Graph3D } from "../../components/Graph3D/Graph3D";
-import { GraphAxis3D } from "../../components/Graph3D/GraphAxis3D";
-import { GraphGrid3D } from "../../components/Graph3D/GraphGrid3D";
+"use client";
+
+import { Graph3D } from "../../../components/Graph3D/Graph3D";
+import { GraphAxis3D } from "../../../components/Graph3D/GraphAxis3D";
+import { GraphGrid3D } from "../../../components/Graph3D/GraphGrid3D";
 import { ParametricGeometry } from "three/examples/jsm/geometries/ParametricGeometry";
 import { extend, Object3DNode } from "@react-three/fiber";
-import { Contour } from "../../components/Graph3D/display/Contour";
 import { Shape, Vector2 } from "three";
-import { Area } from "../../components/Graph3D/display/Area";
+import { Area } from "../../../components/Graph3D/display/Area";
 import { useState } from "react";
 
 extend({ ParametricGeometry });
@@ -34,8 +35,7 @@ export default function RiemannSums() {
         </p>
         <div className="relative h-96 border">
           <Graph3D
-            defaultDimension="2D"
-            showControls={false}
+            view="2D"
             defaultWindowCenter={[0, 2]}
             defaultWindowArea={50}
             allowPan={false}
@@ -78,8 +78,7 @@ function SharpAreaGuessGame() {
     <div className="border divide-y rounded-xl overflow-hidden">
       <div className="relative h-96">
         <Graph3D
-          defaultDimension="2D"
-          showControls={false}
+          view="2D"
           defaultWindowCenter={[0, 1.5]}
           defaultWindowArea={50}
           allowPan={false}

@@ -1,14 +1,17 @@
-import { Graph3D } from "../../components/Graph3D/Graph3D";
+"use client";
 
-import { useCallback, useRef, useState } from "react";
-import { GraphAxis3D } from "../../components/Graph3D/GraphAxis3D";
+import { Graph3D } from "../../../components/Graph3D/Graph3D";
+
+import { useState } from "react";
+import { GraphAxis3D } from "../../../components/Graph3D/GraphAxis3D";
 import dynamic from "next/dynamic";
-import { Vector3 } from "three";
-import { GraphComplexExpression3D } from "../../components/Graph3D/GraphComplexExpression3D";
+import { GraphComplexExpression3D } from "../../../components/Graph3D/GraphComplexExpression3D";
 
 const MathQuillInput = dynamic(
   () =>
-    import("../../components/MathQuillInput").then((mod) => mod.MathQuillInput),
+    import("../../../components/MathQuillInput").then(
+      (mod) => mod.MathQuillInput
+    ),
   { ssr: false }
 );
 
@@ -28,7 +31,7 @@ export default function ComplexDomainColoringImageGenerator() {
               onChange={(newLatex) => setLatex(newLatex)}
             />
           </div>
-          <Graph3D defaultDimension="2D" showControls={false}>
+          <Graph3D view="2D">
             {() => (
               <>
                 {showAxes && (

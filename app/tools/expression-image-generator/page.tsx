@@ -1,14 +1,18 @@
-import { Graph3D } from "../../components/Graph3D/Graph3D";
-import { GraphExpression3D } from "../../components/Graph3D/GraphExpression3D";
+"use client";
+
+import { Graph3D } from "../../../components/Graph3D/Graph3D";
+import { GraphExpression3D } from "../../../components/Graph3D/GraphExpression3D";
 
 import { useCallback, useRef, useState } from "react";
-import { GraphAxis3D } from "../../components/Graph3D/GraphAxis3D";
+import { GraphAxis3D } from "../../../components/Graph3D/GraphAxis3D";
 import dynamic from "next/dynamic";
 import { Vector3 } from "three";
 
 const MathLiveInput = dynamic(
   () =>
-    import("../../components/MathLiveInput").then((mod) => mod.MathLiveInput),
+    import("../../../components/MathLiveInput").then(
+      (mod) => mod.MathLiveInput
+    ),
   { ssr: false }
 );
 
@@ -70,7 +74,7 @@ export default function ExpressionImageGenerator() {
               onChange={(newLatex) => setLatex(newLatex)}
             />
           </div>
-          <Graph3D ref={canvasRef} defaultDimension="2D" showControls={false}>
+          <Graph3D ref={canvasRef} view="2D">
             {() => (
               <>
                 {showAxes && (

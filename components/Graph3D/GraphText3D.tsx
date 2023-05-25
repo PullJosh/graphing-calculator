@@ -1,3 +1,5 @@
+"use client";
+
 import { Billboard, Text } from "@react-three/drei";
 import { Color, Vector3 } from "three";
 

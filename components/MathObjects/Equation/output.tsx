@@ -1,3 +1,5 @@
+"use client";
+
 import { GraphEquation3D } from "../../Graph3D/GraphEquation3D";
 import type { ObjectDescription } from "./spec";
 

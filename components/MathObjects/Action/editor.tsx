@@ -1,3 +1,5 @@
+"use client";
+
 import dynamic from "next/dynamic";
 import type { ObjectDescription } from "./spec";
 import { ContentEditorProps } from "..";

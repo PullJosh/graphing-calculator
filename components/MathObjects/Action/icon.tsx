@@ -1,4 +1,4 @@
-import classNames from "classnames";
+"use client";
 
 import { ObjectDescription } from "./spec";
 

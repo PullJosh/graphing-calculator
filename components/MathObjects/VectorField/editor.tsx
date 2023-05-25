@@ -1,3 +1,5 @@
+"use client";
+
 import dynamic from "next/dynamic";
 import { Children, Fragment, ReactNode } from "react";
 import type { ObjectDescription } from "./spec";

@@ -1,3 +1,5 @@
+"use client";
+
 import { extend, Object3DNode, useThree } from "@react-three/fiber";
 import { useContext } from "react";
 import { Euler, Vector2, Vector3 } from "three";
@@ -8,7 +10,7 @@ import { useClippingPlanes } from "../../hooks/useClippingPlanes";
 import { Graph3DContext } from "./Graph3D";
 
 import colors from "tailwindcss/colors";
-import { ThemeContext } from "../../pages/_app";
+import { useTheme } from "next-themes";
 
 extend({ LineMaterial, LineGeometry, Line2 });
 declare module "@react-three/fiber" {
@@ -47,9 +49,11 @@ export function GraphGridLine3D({
     .filter((axis) => axis !== null) as ("x" | "y" | "z")[];
   const clippingPlanes = useClippingPlanes(clippingPlaneAxes);
 
-  const { theme } = useContext(ThemeContext);
+  const { theme } = useTheme();
   if (!color) {
-    color = { light: colors.slate[200], dark: colors.slate[700] }[theme];
+    color = { light: colors.slate[200], dark: colors.slate[700] }[
+      theme as "light" | "dark"
+    ];
   }
 
   if (x !== null && (x < window.value[0][0] || x > window.value[1][0])) {

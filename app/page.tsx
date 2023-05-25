@@ -1,3 +1,5 @@
+"use client";
+
 import { useEffect, useReducer, useState } from "react";
 import { Euler, Vector3 } from "three";
 import { Graph3D } from "../components/Graph3D/Graph3D";
@@ -34,11 +36,7 @@ export default function Index() {
           </div>
 
           <div className="absolute -top-10 -bottom-10 right-0 left-1/3">
-            <Graph3D
-              showControls={false}
-              defaultCameraType="perspective"
-              autoRotate={true}
-            >
+            <Graph3D view="3D-perspective" autoRotate={true}>
               {() => (
                 <>
                   <GraphBoundingBox3D />

@@ -1,16 +1,18 @@
+"use client";
+
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import classNames from "classnames";
 import { Popover } from "@headlessui/react";
-import { Graph3D } from "../components/Graph3D/Graph3D";
-import { GraphEquation3D } from "../components/Graph3D/GraphEquation3D";
-import { GraphGrid3D } from "../components/Graph3D/GraphGrid3D";
-import { GraphAxis3D } from "../components/Graph3D/GraphAxis3D";
-import { GraphBoundingBox3D } from "../components/Graph3D/GraphBoundingBox3D";
+import { Graph3D } from "../../components/Graph3D/Graph3D";
+import { GraphEquation3D } from "../../components/Graph3D/GraphEquation3D";
+import { GraphGrid3D } from "../../components/Graph3D/GraphGrid3D";
+import { GraphAxis3D } from "../../components/Graph3D/GraphAxis3D";
+import { GraphBoundingBox3D } from "../../components/Graph3D/GraphBoundingBox3D";
 import { Shape, Vector2 } from "three";
-import { Area } from "../components/Graph3D/display/Area";
-import { Axis } from "../types";
+import { Area } from "../../components/Graph3D/display/Area";
+import { Axis } from "../../types";
 import { Menu } from "@headlessui/react";
-import { Navigation } from "../components/Navigation";
+import { Navigation } from "../../components/Navigation";
 
 import {
   Action,
@@ -19,7 +21,7 @@ import {
   Expression,
   Table,
   VectorField,
-} from "../components/MathObjects";
+} from "../../components/MathObjects";
 
 const mathObjects = [
   Action,
@@ -133,6 +135,13 @@ export default function Index() {
     link.hash = encodeState({ items, variables, slices });
     return link.href;
   }, [encodeState, items, slices, variables]);
+
+  const [default3DView, setDefault3DView] = useState<
+    "3D-orthographic" | "3D-perspective"
+  >("3D-perspective");
+  const [view, setView] = useState<
+    "1D" | "2D" | "3D-orthographic" | "3D-perspective"
+  >("2D");
 
   return (
     <div className="grid grid-cols-[350px,1fr] grid-rows-[auto,1fr] w-screen h-screen">
@@ -378,10 +387,129 @@ export default function Index() {
         </div>
       </div>
       <div className="relative overflow-hidden">
-        <Graph3D
-          varValues={Object.fromEntries(variables)}
-          defaultDimension="2D"
-        >
+        <div className="absolute top-4 left-4 z-20">
+          <div className="flex space-x-2">
+            <div className="bg-gray-200 p-1 rounded-md flex">
+              <button
+                className={classNames("flex text-sm px-2 py-1", {
+                  "bg-white shadow-sm rounded": view === "1D",
+                })}
+                onClick={() => setView("1D")}
+                disabled={view === "1D"}
+              >
+                1D
+              </button>
+              <button
+                className={classNames("flex text-sm px-2 py-1", {
+                  "bg-white shadow-sm rounded": view === "2D",
+                })}
+                onClick={() => setView("2D")}
+                disabled={view === "2D"}
+              >
+                2D
+              </button>
+              <button
+                className={classNames("flex text-sm px-2 py-1", {
+                  "bg-white shadow-sm rounded":
+                    view === "3D-orthographic" || view === "3D-perspective",
+                })}
+                onClick={() => setView(default3DView)}
+                disabled={
+                  view === "3D-orthographic" || view === "3D-perspective"
+                }
+              >
+                3D
+              </button>
+            </div>
+            {(view === "3D-orthographic" || view === "3D-perspective") && (
+              <div className="bg-gray-200 p-1 rounded-md flex">
+                <button
+                  className={classNames("flex text-sm px-2 py-1", {
+                    "bg-white shadow-sm rounded": view === "3D-perspective",
+                  })}
+                  onClick={() => {
+                    setView("3D-perspective");
+                    setDefault3DView("3D-perspective");
+                  }}
+                  disabled={view === "3D-perspective"}
+                  title="Perspective camera"
+                >
+                  <svg
+                    viewBox="0 0 20 20"
+                    width={20}
+                    height={20}
+                    fill="none"
+                    className="block stroke-gray-600"
+                    strokeWidth={2}
+                    style={{
+                      strokeLinecap: "round",
+                      strokeLinejoin: "round",
+                    }}
+                  >
+                    <g transform="matrix(1,0,0,1,0,-0.75)">
+                      <path d="M2.206,5.5L10,2.5L17.794,5.5L10,10L2.206,5.5Z" />
+                    </g>
+                    <g transform="matrix(-0.5,0.866025,-0.866025,-0.5,23.6603,5.58975)">
+                      <path d="M2.206,5.5L10,2.5L17.794,5.5L10,10L2.206,5.5Z" />
+                    </g>
+                    <g transform="matrix(-0.5,-0.866025,0.866025,-0.5,6.33975,22.9103)">
+                      <path d="M2.206,5.5L10,2.5L17.794,5.5L10,10L2.206,5.5Z" />
+                    </g>
+                  </svg>
+                </button>
+                <button
+                  className={classNames("flex text-sm px-2 py-1", {
+                    "bg-white shadow-sm rounded": view === "3D-orthographic",
+                  })}
+                  onClick={() => {
+                    setView("3D-orthographic");
+                    setDefault3DView("3D-orthographic");
+                  }}
+                  disabled={view === "3D-orthographic"}
+                  title="Orthographic camera"
+                >
+                  <svg
+                    viewBox="0 0 20 20"
+                    width={20}
+                    height={20}
+                    fill="none"
+                    className="block stroke-gray-600"
+                    strokeWidth={2}
+                    style={{
+                      strokeLinecap: "round",
+                      strokeLinejoin: "round",
+                    }}
+                  >
+                    <path d="M2.206,5.5L10,1L17.794,5.5L10,10L2.206,5.5Z" />
+                    <path d="M2.206,14.5L2.206,5.5L10,10L10,19L2.206,14.5Z" />
+                    <path d="M10,10L10,19L17.794,14.5L17.794,5.5L10,10Z" />
+                  </svg>
+                </button>
+              </div>
+            )}
+            {(view === "3D-orthographic" || view === "3D-perspective") && (
+              <div className="bg-gray-200 p-1 rounded-md flex opacity-50">
+                <button
+                  className={classNames("flex text-sm px-2 py-1", {
+                    "bg-white shadow-sm rounded": false,
+                  })}
+                  disabled={true}
+                >
+                  1st Person
+                </button>
+                <button
+                  className={classNames("flex text-sm px-2 py-1", {
+                    "bg-white shadow-sm rounded": true,
+                  })}
+                  disabled={true}
+                >
+                  3rd Person
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+        <Graph3D varValues={Object.fromEntries(variables)} view={view}>
           {({ dimension }) => {
             return (
               <>
@@ -437,11 +565,7 @@ export default function Index() {
                   >
                     X
                   </button>
-                  <Graph3D
-                    defaultDimension="2D"
-                    showControls={false}
-                    allowPan={false}
-                  >
+                  <Graph3D view="2D" allowPan={false}>
                     {() => {
                       const axes = (["x", "y", "z"] as Axis[]).filter(
                         (axis) => axis !== axisVar

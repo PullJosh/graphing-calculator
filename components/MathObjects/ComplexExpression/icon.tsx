@@ -1,3 +1,5 @@
+"use client";
+
 import { ObjectDescription } from "./spec";
 
 interface IconProps {

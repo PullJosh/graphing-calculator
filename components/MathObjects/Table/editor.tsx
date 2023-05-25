@@ -1,3 +1,5 @@
+"use client";
+
 import { useRef } from "react";
 import type { ObjectDescription } from "./spec";
 import { ContentEditorProps } from "..";

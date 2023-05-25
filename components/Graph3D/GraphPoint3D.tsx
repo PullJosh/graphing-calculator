@@ -1,3 +1,5 @@
+"use client";
+
 import { useContext } from "react";
 import { Vector3 } from "three";
 import { Graph3DContext } from "./Graph3D";

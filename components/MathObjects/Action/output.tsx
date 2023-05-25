@@ -1,4 +1,5 @@
-import { GraphEquation3D } from "../../Graph3D/GraphEquation3D";
+"use client";
+
 import type { ObjectDescription } from "./spec";
 
 interface OutputProps {

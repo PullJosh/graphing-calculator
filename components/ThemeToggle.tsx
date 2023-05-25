@@ -1,8 +1,9 @@
-import { useContext } from "react";
-import { ThemeContext } from "../pages/_app";
+"use client";
+
+import { useTheme } from "next-themes";
 
 export function ThemeToggle() {
-  const { theme, setTheme } = useContext(ThemeContext);
+  const { theme, setTheme } = useTheme();
 
   return (
     <button

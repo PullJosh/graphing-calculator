@@ -1,3 +1,5 @@
+"use client";
+
 import { extend, Object3DNode, useThree } from "@react-three/fiber";
 
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial";

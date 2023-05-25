@@ -1,3 +1,5 @@
+"use client";
+
 import { GraphGridLine3D } from "./GraphGridLine3D";
 import { Vector3 } from "three";
 import { useContext, useEffect, useState } from "react";
