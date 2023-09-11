@@ -1,7 +1,7 @@
 import { Navigation } from "../../components/Navigation";
 
 export const metadata = {
-  title: "Josh's Graphing Calculator",
+  title: "Mr. Pullen's Graphing Calculator",
 };
 
 interface LayoutProps {

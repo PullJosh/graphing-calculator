@@ -31,7 +31,7 @@ export function Navigation({
       >
         <div className="flex items-center py-3">
           <Link href="/" className="text-gray-100 font-bold text-xl">
-            Josh's Graphing Calculator
+            Mr. Pullen's Graphing Calculator
           </Link>
           <div className="space-x-2 ml-auto flex">
             {children}

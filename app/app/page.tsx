@@ -129,8 +129,7 @@ export default function Index() {
 
   const encodedStateURL = useMemo(() => {
     const link = new URL(
-      global?.location?.href ??
-        "https://joshs-graphing-calculator.vercel.app/app"
+      global?.location?.href ?? "https://calculator.mrpullen.com/app"
     );
     link.hash = encodeState({ items, variables, slices });
     return link.href;
